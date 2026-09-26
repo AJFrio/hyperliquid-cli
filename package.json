@@ -1,0 +1,32 @@
+{
+  "name": "hyperliquid-cli",
+  "version": "0.1.0",
+  "description": "Agent-first CLI for Hyperliquid: market data, account reads, and trading.",
+  "type": "module",
+  "license": "MIT",
+  "bin": { "hyperliquid": "./dist/bin/hyperliquid.js" },
+  "files": ["dist"],
+  "engines": { "node": ">=20.11" },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "fixtures": "node scripts/capture-fixtures.mjs"
+  },
+  "dependencies": {
+    "@github/keytar": "7.10.6",
+    "@nktkas/hyperliquid": "0.33.3",
+    "commander": "^14.0.2",
+    "viem": "^2.44.0",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.4",
+    "@types/node": "^24.9.2",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
