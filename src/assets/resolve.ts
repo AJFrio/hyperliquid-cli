@@ -27,7 +27,7 @@ export interface SpotPair {
   name: string;
   index: number;
   tokens: [number, number];
-  isCanonical: boolean;
+  isCanonical?: boolean | undefined;
 }
 
 export type AssetKind = "perp" | "spot" | "hip3";
@@ -136,15 +136,23 @@ export class AssetResolver {
       () => this.resolveHip3(symbol),
       () => this.resolveSpot(symbol),
     ];
-    let last: unknown;
     for (const attempt of attempts) {
       try {
         return attempt();
-      } catch (err) {
-        last = err;
+      } catch {
+        /* try the next product type */
       }
     }
     throw new UsageError("UNKNOWN_ASSET", `unknown market: ${symbol}`, { symbol });
+  }
+
+  allPerpSymbols(): string[] {
+    return [...this.perps.values()].map((e) => e.asset.name);
+  }
+
+  /** True when the symbol is a spot pair. */
+  isSpot(symbol: string): boolean {
+    return this.spot.has(symbol) || /^@\d+$/.test(symbol);
   }
 
   private lookupPerp(symbol: string): { index: number; asset: PerpAsset } | undefined {

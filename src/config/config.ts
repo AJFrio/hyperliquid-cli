@@ -1,7 +1,6 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
-import { NotConfiguredError } from "../errors.js";
 
 export const CONFIG_SCHEMA_VERSION = 1;
 

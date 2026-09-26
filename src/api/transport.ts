@@ -7,6 +7,16 @@ export function apiUrlFor(testnet: boolean): string {
   return testnet ? TESTNET_API_URL : MAINNET_API_URL;
 }
 
+/** POST /info for read calls. The bare host 404s - the path is required. */
+export function infoUrl(testnet: boolean): string {
+  return `${apiUrlFor(testnet)}/info`;
+}
+
+/** POST /exchange for signed actions. */
+export function exchangeUrl(testnet: boolean): string {
+  return `${apiUrlFor(testnet)}/exchange`;
+}
+
 const DEFAULT_TIMEOUT_MS = 15_000;
 
 /**
@@ -21,7 +31,7 @@ const DEFAULT_TIMEOUT_MS = 15_000;
 export async function postJson<T>(
   url: string,
   body: unknown,
-  opts: { timeoutMs?: number; fetchImpl?: typeof fetch } = {},
+  opts: { timeoutMs?: number; fetchImpl?: typeof fetch | undefined } = {},
 ): Promise<T> {
   const doFetch = opts.fetchImpl ?? fetch;
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;

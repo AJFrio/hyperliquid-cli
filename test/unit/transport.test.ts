@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { apiUrlFor, MAINNET_API_URL, postJson, TESTNET_API_URL } from "../../src/api/transport.js";
+import { apiUrlFor, exchangeUrl, infoUrl, MAINNET_API_URL, postJson, TESTNET_API_URL } from "../../src/api/transport.js";
 import { ApiError, NetworkError } from "../../src/errors.js";
 
 function jsonResponse(body: unknown, init: { status?: number; contentType?: string } = {}): Response {
@@ -15,6 +15,13 @@ describe("apiUrlFor", () => {
   it("selects the correct network base URL", () => {
     expect(apiUrlFor(false)).toBe(MAINNET_API_URL);
     expect(apiUrlFor(true)).toBe(TESTNET_API_URL);
+  });
+
+  it("appends the required /info and /exchange paths - the bare host 404s", () => {
+    expect(infoUrl(false)).toBe(`${MAINNET_API_URL}/info`);
+    expect(infoUrl(true)).toBe(`${TESTNET_API_URL}/info`);
+    expect(exchangeUrl(false)).toBe(`${MAINNET_API_URL}/exchange`);
+    expect(exchangeUrl(true)).toBe(`${TESTNET_API_URL}/exchange`);
   });
 });
 
@@ -32,7 +39,8 @@ describe("postJson", () => {
   it("sends the body as JSON with the right content type", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({}));
     await postJson("https://example.test/info", { type: "meta" }, { fetchImpl: fetchImpl as unknown as typeof fetch });
-    const [, init] = fetchImpl.mock.calls[0] as [string, RequestInit];
+    const call = fetchImpl.mock.calls[0] as [string, RequestInit] | undefined;
+    const init = call?.[1] as RequestInit;
     expect((init.headers as Record<string, string>)["Content-Type"]).toBe("application/json");
     expect(JSON.parse(init.body as string)).toEqual({ type: "meta" });
     expect(init.method).toBe("POST");
