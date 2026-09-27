@@ -4,9 +4,15 @@
   "description": "Agent-first CLI for Hyperliquid: market data, account reads, and trading.",
   "type": "module",
   "license": "MIT",
-  "bin": { "hyperliquid": "./dist/bin/hyperliquid.js" },
-  "files": ["dist"],
-  "engines": { "node": ">=20.11" },
+  "bin": {
+    "hyperliquid": "./dist/bin/hyperliquid.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",

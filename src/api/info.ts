@@ -140,11 +140,16 @@ async function info<T>(body: unknown, schema: z.ZodType<T>, opts: InfoOptions): 
 
 export const getMeta = (o: InfoOptions) => info({ type: "meta" }, metaSchema, o);
 export const getSpotMeta = (o: InfoOptions) => info({ type: "spotMeta" }, spotMetaSchema, o);
-export const getMetaAndCtx = (o: InfoOptions) => info({ type: "metaAndAssetCtxs" }, metaAndCtxSchema, o);
-export const getSpotMetaAndCtx = (o: InfoOptions) => info({ type: "spotMetaAndAssetCtxs" }, spotMetaAndCtxSchema, o);
-export const getAllMids = (o: InfoOptions) => info({ type: "allMids" }, z.record(z.string(), dec), o);
-export const getExchangeStatus = (o: InfoOptions) => info({ type: "exchangeStatus" }, exchangeStatusSchema, o);
-export const getPredictedFundings = (o: InfoOptions) => info({ type: "predictedFundings" }, predictedFundingSchema, o);
+export const getMetaAndCtx = (o: InfoOptions) =>
+  info({ type: "metaAndAssetCtxs" }, metaAndCtxSchema, o);
+export const getSpotMetaAndCtx = (o: InfoOptions) =>
+  info({ type: "spotMetaAndAssetCtxs" }, spotMetaAndCtxSchema, o);
+export const getAllMids = (o: InfoOptions) =>
+  info({ type: "allMids" }, z.record(z.string(), dec), o);
+export const getExchangeStatus = (o: InfoOptions) =>
+  info({ type: "exchangeStatus" }, exchangeStatusSchema, o);
+export const getPredictedFundings = (o: InfoOptions) =>
+  info({ type: "predictedFundings" }, predictedFundingSchema, o);
 
 export const getCandles = (
   req: { coin: string; interval: string; startTime: number; endTime: number },
@@ -154,7 +159,8 @@ export const getCandles = (
 export const getRecentTrades = (coin: string, o: InfoOptions) =>
   info({ type: "recentTrades", coin }, z.array(tradeSchema), o);
 
-export const getL2Book = (coin: string, o: InfoOptions) => info({ type: "l2Book", coin }, l2BookSchema, o);
+export const getL2Book = (coin: string, o: InfoOptions) =>
+  info({ type: "l2Book", coin }, l2BookSchema, o);
 
 export function getClearinghouseState(user: string, o: InfoOptions) {
   return info({ type: "clearinghouseState", user }, z.unknown(), o);

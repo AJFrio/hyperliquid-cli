@@ -71,7 +71,11 @@ export class AssetResolver {
       const dexIndex = dexIndexByName.get(uni.dex);
       if (dexIndex === undefined) continue;
       uni.perps.forEach((asset, index) => {
-        this.hip3.set(`${uni.dex}:${asset.name}`, { dexIndex, index, szDecimals: asset.szDecimals });
+        this.hip3.set(`${uni.dex}:${asset.name}`, {
+          dexIndex,
+          index,
+          szDecimals: asset.szDecimals,
+        });
       });
     }
   }
@@ -80,7 +84,10 @@ export class AssetResolver {
   resolvePerp(symbol: string): ResolvedAsset {
     const found = this.lookupPerp(symbol);
     if (found === undefined) {
-      throw new UsageError("UNKNOWN_ASSET", `unknown perpetual market: ${symbol}`, { symbol, kind: "perp" });
+      throw new UsageError("UNKNOWN_ASSET", `unknown perpetual market: ${symbol}`, {
+        symbol,
+        kind: "perp",
+      });
     }
     return {
       kind: "perp",
@@ -112,14 +119,20 @@ export class AssetResolver {
         return { kind: "spot", assetId: SPOT_OFFSET + idx, symbol: byIndex.name, szDecimals: 0 };
       }
     }
-    throw new UsageError("UNKNOWN_ASSET", `unknown spot pair: ${pair}`, { symbol: pair, kind: "spot" });
+    throw new UsageError("UNKNOWN_ASSET", `unknown spot pair: ${pair}`, {
+      symbol: pair,
+      kind: "spot",
+    });
   }
 
   /** Resolve a HIP-3 builder-perp named `dex:COIN`, e.g. `xyz:AAPL`. */
   resolveHip3(symbol: string): ResolvedAsset {
     const found = this.hip3.get(symbol);
     if (found === undefined) {
-      throw new UsageError("UNKNOWN_ASSET", `unknown HIP-3 market: ${symbol}`, { symbol, kind: "hip3" });
+      throw new UsageError("UNKNOWN_ASSET", `unknown HIP-3 market: ${symbol}`, {
+        symbol,
+        kind: "hip3",
+      });
     }
     return {
       kind: "hip3",

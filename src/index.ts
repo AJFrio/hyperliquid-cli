@@ -1,9 +1,9 @@
 import { Command } from "commander";
-import type { OutputOptions, Writer } from "./cli/output.js";
 import { registerAccount } from "./cli/groups/account.js";
 import { registerMarket } from "./cli/groups/market.js";
 import { registerSetup } from "./cli/groups/setup.js";
 import { registerTrading } from "./cli/groups/trading.js";
+import type { OutputOptions, Writer } from "./cli/output.js";
 import { toCliError } from "./errors.js";
 
 export const VERSION = "0.1.0";
@@ -61,11 +61,16 @@ export async function run(argv: string[], io: RunIo = defaultIo): Promise<number
   } catch (err) {
     const cliErr = toCliError(err);
     const commanderCode = (err as { code?: string }).code;
-    if (commanderCode === "commander.helpDisplayed" || commanderCode === "commander.help" || commanderCode === "commander.version") {
+    if (
+      commanderCode === "commander.helpDisplayed" ||
+      commanderCode === "commander.help" ||
+      commanderCode === "commander.version"
+    ) {
       return 0;
     }
     io.stderr(`${JSON.stringify(cliErr.toJSON(), null, 2)}\n`);
-    return commanderCode === "commander.unknownCommand" || commanderCode?.startsWith("commander.") === true
+    return commanderCode === "commander.unknownCommand" ||
+      commanderCode?.startsWith("commander.") === true
       ? 2
       : cliErr.exitCode;
   }

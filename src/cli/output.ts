@@ -1,4 +1,4 @@
-import { HlCliError, toCliError } from "../errors.js";
+import { type HlCliError, toCliError } from "../errors.js";
 
 export type Writer = (text: string) => void;
 
@@ -24,12 +24,20 @@ export const defaultOutput: OutputOptions = {
  *   - failure -> a single JSON object on stderr, never mixed into stdout
  * Exit codes come from the error itself (2 usage/validation, 1 runtime).
  */
-export function emitSuccess(value: unknown, opts: OutputOptions, toTable?: (v: unknown) => string): void {
-  const text = opts.table && toTable !== undefined ? toTable(value) : `${JSON.stringify(value, null, 2)}\n`;
+export function emitSuccess(
+  value: unknown,
+  opts: OutputOptions,
+  toTable?: (v: unknown) => string,
+): void {
+  const text =
+    opts.table && toTable !== undefined ? toTable(value) : `${JSON.stringify(value, null, 2)}\n`;
   if (!opts.quiet) opts.write(text);
 }
 
-export function emitError(err: unknown, write: Writer = (t) => process.stderr.write(t)): { text: string; exitCode: number } {
+export function emitError(
+  err: unknown,
+  write: Writer = (t) => process.stderr.write(t),
+): { text: string; exitCode: number } {
   const cliError: HlCliError = toCliError(err);
   const text = `${JSON.stringify(cliError.toJSON(), null, 2)}\n`;
   write(text);

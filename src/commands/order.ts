@@ -1,6 +1,7 @@
 import { getOpenOrders, getOrderStatus } from "../api/info.js";
+import type { Context } from "../cli/context.js";
+import { emitSuccess, type OutputOptions } from "../cli/output.js";
 import { UsageError } from "../errors.js";
-import { dispatch } from "./dispatch.js";
 import {
   buildCancel,
   buildCancelByCloid,
@@ -11,8 +12,7 @@ import {
   type OrderType,
   type OrderWire,
 } from "../signing/buildAction.js";
-import { emitSuccess, type OutputOptions } from "../cli/output.js";
-import type { Context } from "../cli/context.js";
+import { dispatch } from "./dispatch.js";
 
 export interface PlaceArgs {
   symbol: string;
@@ -49,7 +49,9 @@ export async function placeCmd(ctx: Context, args: PlaceArgs, out: OutputOptions
     };
   } else {
     if (args.price === undefined) {
-      throw new UsageError("USAGE", "--price is required unless --trigger-px is supplied", { symbol: args.symbol });
+      throw new UsageError("USAGE", "--price is required unless --trigger-px is supplied", {
+        symbol: args.symbol,
+      });
     }
     type = { limit: { tif: args.tif } };
   }
@@ -65,9 +67,13 @@ export async function placeCmd(ctx: Context, args: PlaceArgs, out: OutputOptions
   };
 
   const action = buildOrder([order], args.grouping ?? "na") as Record<string, unknown>;
-  return dispatch(ctx, action, `order ${args.side} ${args.size} ${asset.symbol} @ ${order.limitPx}`, out);
+  return dispatch(
+    ctx,
+    action,
+    `order ${args.side} ${args.size} ${asset.symbol} @ ${order.limitPx}`,
+    out,
+  );
 }
-
 
 export async function cancelCmd(
   ctx: Context,
@@ -76,10 +82,11 @@ export async function cancelCmd(
 ): Promise<number> {
   const resolver = await ctx.assets();
   const asset = resolver.resolveAny(args.symbol);
-  const action = buildCancel([{ asset: asset.assetId, oid: args.oid }], { fast: args.fast }) as Record<string, unknown>;
+  const action = buildCancel([{ asset: asset.assetId, oid: args.oid }], {
+    fast: args.fast,
+  }) as Record<string, unknown>;
   return dispatch(ctx, action, `cancel oid ${args.oid} on ${asset.symbol}`, out);
 }
-
 
 export async function cancelByCloidCmd(
   ctx: Context,
@@ -135,7 +142,13 @@ export async function cancelAllCmd(
 
 export async function modifyCmd(
   ctx: Context,
-  args: { oid: number; price?: string | undefined; size?: string | undefined; tif?: Tif | undefined; alwaysPlace: boolean },
+  args: {
+    oid: number;
+    price?: string | undefined;
+    size?: string | undefined;
+    tif?: Tif | undefined;
+    alwaysPlace: boolean;
+  },
   out: OutputOptions,
 ): Promise<number> {
   if (args.price === undefined && args.size === undefined) {
@@ -147,27 +160,40 @@ export async function modifyCmd(
     order?: { order?: Record<string, unknown> };
   };
   if (status.status !== "order" || status.order?.order === undefined) {
-    throw new UsageError("INVALID_INPUT", `oid ${args.oid} is not a live order (status: ${status.status})`, {
-      oid: args.oid,
-      status: status.status,
-    });
+    throw new UsageError(
+      "INVALID_INPUT",
+      `oid ${args.oid} is not a live order (status: ${status.status})`,
+      {
+        oid: args.oid,
+        status: status.status,
+      },
+    );
   }
   const current = status.order.order;
-  const currentType = current["t"] as OrderType | undefined;
+  const currentType = current.t as OrderType | undefined;
   const wire: OrderWire = {
-    a: Number(current["a"]),
-    b: Boolean(current["b"]),
-    p: args.price ?? String(current["p"]),
-    s: args.size ?? String(current["s"]),
-    r: Boolean(current["r"]),
-    t: args.tif === undefined ? (currentType ?? { limit: { tif: "Gtc" as Tif } }) : { limit: { tif: args.tif } },
+    a: Number(current.a),
+    b: Boolean(current.b),
+    p: args.price ?? String(current.p),
+    s: args.size ?? String(current.s),
+    r: Boolean(current.r),
+    t:
+      args.tif === undefined
+        ? (currentType ?? { limit: { tif: "Gtc" as Tif } })
+        : { limit: { tif: args.tif } },
   };
-  const action = buildModify(args.oid, wire, { alwaysPlace: args.alwaysPlace }) as Record<string, unknown>;
+  const action = buildModify(args.oid, wire, { alwaysPlace: args.alwaysPlace }) as Record<
+    string,
+    unknown
+  >;
   return dispatch(ctx, action, `modify oid ${args.oid}`, out);
 }
 
-
-export async function scheduleCancelCmd(ctx: Context, args: { at?: string | undefined; clear: boolean }, out: OutputOptions): Promise<number> {
+export async function scheduleCancelCmd(
+  ctx: Context,
+  args: { at?: string | undefined; clear: boolean },
+  out: OutputOptions,
+): Promise<number> {
   let timeMs: number | undefined;
   if (args.clear) {
     timeMs = undefined;
@@ -177,14 +203,24 @@ export async function scheduleCancelCmd(ctx: Context, args: { at?: string | unde
     }
     const parsed = Date.parse(args.at);
     if (Number.isNaN(parsed)) {
-      throw new UsageError("USAGE", `--at is not a parseable timestamp: ${args.at}`, { at: args.at });
+      throw new UsageError("USAGE", `--at is not a parseable timestamp: ${args.at}`, {
+        at: args.at,
+      });
     }
     if (parsed <= Date.now()) {
-      throw new UsageError("USAGE", "--at must be at least 5 seconds in the future (the exchange rejects sooner)", { at: args.at });
+      throw new UsageError(
+        "USAGE",
+        "--at must be at least 5 seconds in the future (the exchange rejects sooner)",
+        { at: args.at },
+      );
     }
     timeMs = parsed;
   }
   const action = buildScheduleCancel(timeMs) as Record<string, unknown>;
-  return dispatch(ctx, action, timeMs === undefined ? "clear dead-man switch" : `arm dead-man switch at ${args.at}`, out);
+  return dispatch(
+    ctx,
+    action,
+    timeMs === undefined ? "clear dead-man switch" : `arm dead-man switch at ${args.at}`,
+    out,
+  );
 }
-

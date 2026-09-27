@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   ApiError,
-  ExchangeRejectedError,
   EXIT_OK,
   EXIT_RUNTIME,
   EXIT_USAGE,
+  ExchangeRejectedError,
   HlCliError,
   NetworkError,
   NotConfiguredError,
-  UsageError,
   toCliError,
+  UsageError,
 } from "../../src/errors.js";
 
 describe("error exit-code contract", () => {

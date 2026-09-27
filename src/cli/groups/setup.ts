@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
 import type { Command } from "commander";
 import * as configCmd from "../../commands/config.js";
-import { contextFrom, globalsFor, outOf } from "../globals.js";
-import type { Writer } from "../output.js";
 import { UsageError } from "../../errors.js";
 import { ENV_AGENT_KEY } from "../../storage/keystore.js";
+import { contextFrom, globalsFor, outOf } from "../globals.js";
+import type { Writer } from "../output.js";
 
 /**
  * Read a secret from a file or an env var, never from argv.
@@ -13,7 +13,11 @@ import { ENV_AGENT_KEY } from "../../storage/keystore.js";
  * refuses to accept a bare key flag. `--*-key-file` and the env var are the
  * only supported channels.
  */
-function readSecret(file: string | undefined, envVar: string, env: NodeJS.ProcessEnv = process.env): string {
+function readSecret(
+  file: string | undefined,
+  envVar: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
   if (file !== undefined) {
     try {
       return readFileSync(file, "utf8").trim();
@@ -30,7 +34,10 @@ export function registerSetup(program: Command, write?: Writer): void {
   program
     .command("init")
     .description("one-time setup: store the agent signing key and the account address it trades")
-    .requiredOption("--account <address>", "account (master/sub-account) address that owns the positions")
+    .requiredOption(
+      "--account <address>",
+      "account (master/sub-account) address that owns the positions",
+    )
     .option("--key-file <path>", `file containing the agent private key (or set ${ENV_AGENT_KEY})`)
     .option("--network <n>", "mainnet or testnet", "mainnet")
     .option("--agent-name <name>", "label for the agent registration")
@@ -65,9 +72,14 @@ export function registerSetup(program: Command, write?: Writer): void {
   const agent = program.command("agent").description("agent key registration");
   agent
     .command("approve")
-    .description("register an agent address with the account; needs the MASTER key, supplied per-invocation and never stored")
+    .description(
+      "register an agent address with the account; needs the MASTER key, supplied per-invocation and never stored",
+    )
     .option("--agent-address <address>", "agent address to register (defaults to the stored one)")
-    .option("--master-key-file <path>", "file containing the MASTER private key (or set HLCLI_MASTER_PRIVATE_KEY)")
+    .option(
+      "--master-key-file <path>",
+      "file containing the MASTER private key (or set HLCLI_MASTER_PRIVATE_KEY)",
+    )
     .option("--agent-name <name>", "label for the registration")
     .action(async (opts, cmd: Command) => {
       const p = globalsFor(cmd);

@@ -1,12 +1,14 @@
 import type { Command } from "commander";
-import * as order from "../../commands/order.js";
 import * as margin from "../../commands/margin.js";
+import * as order from "../../commands/order.js";
 import * as twap from "../../commands/twap.js";
 import { contextFrom, globalsFor, outOf } from "../globals.js";
 import type { Writer } from "../output.js";
 
 export function registerTrading(program: Command, write?: Writer): void {
-  const ord = program.command("order").description("signed trading actions; add --dry-run to sign without posting");
+  const ord = program
+    .command("order")
+    .description("signed trading actions; add --dry-run to sign without posting");
 
   ord
     .command("place")
@@ -28,16 +30,16 @@ export function registerTrading(program: Command, write?: Writer): void {
         contextFrom(p),
         {
           symbol,
-          side: o["side"] === "sell" ? "sell" : "buy",
-          size: String(o["size"] ?? "0"),
-          price: o["price"] === undefined ? undefined : String(o["price"]),
-          spot: o["spot"] === true,
-          reduceOnly: o["reduceOnly"] === true,
-          tif: (o["tif"] ?? "Gtc") as order.Tif,
-          triggerPx: o["triggerPx"] === undefined ? undefined : String(o["triggerPx"]),
-          triggerKind: o["triggerKind"] === "sl" ? "sl" : "tp",
-          marketTrigger: o["marketTrigger"] === true,
-          cloid: o["cloid"] === undefined ? undefined : String(o["cloid"]),
+          side: o.side === "sell" ? "sell" : "buy",
+          size: String(o.size ?? "0"),
+          price: o.price === undefined ? undefined : String(o.price),
+          spot: o.spot === true,
+          reduceOnly: o.reduceOnly === true,
+          tif: (o.tif ?? "Gtc") as order.Tif,
+          triggerPx: o.triggerPx === undefined ? undefined : String(o.triggerPx),
+          triggerKind: o.triggerKind === "sl" ? "sl" : "tp",
+          marketTrigger: o.marketTrigger === true,
+          cloid: o.cloid === undefined ? undefined : String(o.cloid),
         },
         outOf(p, write),
       );
@@ -98,10 +100,10 @@ export function registerTrading(program: Command, write?: Writer): void {
         contextFrom(p),
         {
           oid: Number(oid),
-          price: o["price"] === undefined ? undefined : String(o["price"]),
-          size: o["size"] === undefined ? undefined : String(o["size"]),
-          tif: o["tif"] === undefined ? undefined : (String(o["tif"]) as order.Tif),
-          alwaysPlace: o["alwaysPlace"] === true,
+          price: o.price === undefined ? undefined : String(o.price),
+          size: o.size === undefined ? undefined : String(o.size),
+          tif: o.tif === undefined ? undefined : (String(o.tif) as order.Tif),
+          alwaysPlace: o.alwaysPlace === true,
         },
         outOf(p, write),
       );
@@ -115,7 +117,11 @@ export function registerTrading(program: Command, write?: Writer): void {
     .action(async (opts, cmd: Command) => {
       const p = globalsFor(cmd);
       const o = opts as { at?: string; clear?: boolean };
-      process.exitCode = await order.scheduleCancelCmd(contextFrom(p), { at: o.at, clear: o.clear === true }, outOf(p, write));
+      process.exitCode = await order.scheduleCancelCmd(
+        contextFrom(p),
+        { at: o.at, clear: o.clear === true },
+        outOf(p, write),
+      );
     });
 
   const mar = program.command("margin").description("leverage and isolated margin");
@@ -130,7 +136,12 @@ export function registerTrading(program: Command, write?: Writer): void {
       const o = opts as { cross?: boolean; isolated?: boolean };
       process.exitCode = await margin.leverageCmd(
         contextFrom(p),
-        { symbol, leverage: Number(leverage), cross: o.cross === true, isolated: o.isolated === true },
+        {
+          symbol,
+          leverage: Number(leverage),
+          cross: o.cross === true,
+          isolated: o.isolated === true,
+        },
         outOf(p, write),
       );
     });
@@ -143,14 +154,26 @@ export function registerTrading(program: Command, write?: Writer): void {
       const p = globalsFor(cmd);
       process.exitCode = await margin.addMarginCmd(
         contextFrom(p),
-        { symbol, usd: Number(usd), side: (opts as { side: string }).side === "short" ? "short" : "long" },
+        {
+          symbol,
+          usd: Number(usd),
+          side: (opts as { side: string }).side === "short" ? "short" : "long",
+        },
         outOf(p, write),
       );
     });
-  mar.command("top-up").argument("<symbol>").argument("<leverage>").action(async (symbol, leverage, cmd: Command) => {
-    const p = globalsFor(cmd);
-    process.exitCode = await margin.topUpCmd(contextFrom(p), { symbol, leverage: Number(leverage) }, outOf(p, write));
-  });
+  mar
+    .command("top-up")
+    .argument("<symbol>")
+    .argument("<leverage>")
+    .action(async (symbol, leverage, cmd: Command) => {
+      const p = globalsFor(cmd);
+      process.exitCode = await margin.topUpCmd(
+        contextFrom(p),
+        { symbol, leverage: Number(leverage) },
+        outOf(p, write),
+      );
+    });
 
   const tw = program.command("twap").description("time-weighted average price orders");
   tw.command("place")
@@ -166,16 +189,23 @@ export function registerTrading(program: Command, write?: Writer): void {
         contextFrom(p),
         {
           symbol,
-          side: o["side"] === "sell" ? "sell" : "buy",
-          size: String(o["size"] ?? "0"),
-          minutes: Number(o["minutes"] ?? "60"),
-          randomize: o["randomize"] === true,
+          side: o.side === "sell" ? "sell" : "buy",
+          size: String(o.size ?? "0"),
+          minutes: Number(o.minutes ?? "60"),
+          randomize: o.randomize === true,
         },
         outOf(p, write),
       );
     });
-  tw.command("cancel").argument("<symbol>").argument("<twapId>").action(async (symbol, twapId, cmd: Command) => {
-    const p = globalsFor(cmd);
-    process.exitCode = await twap.twapCancelCmd(contextFrom(p), { symbol, twapId: Number(twapId) }, outOf(p, write));
-  });
+  tw.command("cancel")
+    .argument("<symbol>")
+    .argument("<twapId>")
+    .action(async (symbol, twapId, cmd: Command) => {
+      const p = globalsFor(cmd);
+      process.exitCode = await twap.twapCancelCmd(
+        contextFrom(p),
+        { symbol, twapId: Number(twapId) },
+        outOf(p, write),
+      );
+    });
 }

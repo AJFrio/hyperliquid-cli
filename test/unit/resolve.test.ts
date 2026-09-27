@@ -9,10 +9,14 @@ import { UsageError } from "../../src/errors.js";
  * the real production shapes rather than shapes I invented.
  */
 function fixture(name: string): unknown {
-  return JSON.parse(readFileSync(fileURLToPath(new URL(`../../fixtures/${name}`, import.meta.url)), "utf8"));
+  return JSON.parse(
+    readFileSync(fileURLToPath(new URL(`../../fixtures/${name}`, import.meta.url)), "utf8"),
+  );
 }
 
-const meta = fixture("meta.json") as { universe: { name: string; szDecimals: number; maxLeverage: number }[] };
+const meta = fixture("meta.json") as {
+  universe: { name: string; szDecimals: number; maxLeverage: number }[];
+};
 const spotMeta = fixture("spotMeta.json") as {
   universe: { name: string; index: number; tokens: [number, number]; isCanonical: boolean }[];
 };

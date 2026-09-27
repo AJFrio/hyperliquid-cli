@@ -1,6 +1,6 @@
 import { signAndSendL1 } from "../api/exchange.js";
-import { emitSuccess, type OutputOptions } from "../cli/output.js";
 import type { Context } from "../cli/context.js";
+import { emitSuccess, type OutputOptions } from "../cli/output.js";
 
 let lastNonce = 0;
 
@@ -42,7 +42,9 @@ export async function dispatch(
 /** Truncate signature components so a dry-run transcript is not a replayable artifact. */
 export function redact(envelope: unknown): unknown {
   if (typeof envelope !== "object" || envelope === null) return envelope;
-  const clone = JSON.parse(JSON.stringify(envelope)) as { signature?: { r: string; s: string; v: number } };
+  const clone = JSON.parse(JSON.stringify(envelope)) as {
+    signature?: { r: string; s: string; v: number };
+  };
   if (clone.signature !== undefined) {
     clone.signature = {
       r: `${String(clone.signature.r).slice(0, 12)}...`,

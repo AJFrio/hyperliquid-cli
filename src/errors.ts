@@ -52,7 +52,11 @@ export class HlCliError extends Error {
 
 /** Bad flags, bad values, unknown assets - the caller can correct these. */
 export class UsageError extends HlCliError {
-  constructor(code: Extract<ErrorCode, "USAGE" | "UNKNOWN_ASSET" | "INVALID_INPUT" | "UNSUPPORTED">, message: string, details?: Record<string, unknown>) {
+  constructor(
+    code: Extract<ErrorCode, "USAGE" | "UNKNOWN_ASSET" | "INVALID_INPUT" | "UNSUPPORTED">,
+    message: string,
+    details?: Record<string, unknown>,
+  ) {
     super(code, message, EXIT_USAGE, details);
   }
 }

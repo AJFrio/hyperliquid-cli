@@ -9,8 +9,8 @@ import {
   getUserFunding,
   getUserRole,
 } from "../api/info.js";
-import { emitSuccess, renderTable, type OutputOptions } from "../cli/output.js";
 import type { Context } from "../cli/context.js";
+import { emitSuccess, type OutputOptions, renderTable } from "../cli/output.js";
 import { UsageError } from "../errors.js";
 
 async function accountOf(ctx: Context): Promise<string> {
@@ -22,7 +22,13 @@ export async function stateCmd(ctx: Context, out: OutputOptions): Promise<number
   const state = await getClearinghouseState(user, ctx.infoOpts);
   emitSuccess({ user, network: (await ctx.config()).network, state }, out, (v) => {
     const s = v as { state: { assetPositions?: unknown[] } };
-    return renderTable(s.state.assetPositions ?? [], ["coin", "szi", "positionValue", "unrealizedPnl", "leverage"]);
+    return renderTable(s.state.assetPositions ?? [], [
+      "coin",
+      "szi",
+      "positionValue",
+      "unrealizedPnl",
+      "leverage",
+    ]);
   });
   return 0;
 }
@@ -46,7 +52,11 @@ export async function ordersCmd(ctx: Context, out: OutputOptions): Promise<numbe
   return 0;
 }
 
-export async function orderStatusCmd(ctx: Context, oid: string, out: OutputOptions): Promise<number> {
+export async function orderStatusCmd(
+  ctx: Context,
+  oid: string,
+  out: OutputOptions,
+): Promise<number> {
   const user = await accountOf(ctx);
   const parsed: number | string = /^\d+$/.test(oid) ? Number(oid) : oid.toLowerCase();
   const status = await getOrderStatus(user, parsed, ctx.infoOpts);
@@ -57,23 +67,37 @@ export async function orderStatusCmd(ctx: Context, oid: string, out: OutputOptio
 export async function fillsCmd(ctx: Context, out: OutputOptions): Promise<number> {
   const user = await accountOf(ctx);
   const rows = await getUserFills(user, ctx.infoOpts);
-  emitSuccess({ user, count: rows.length, fills: rows }, out, () => renderTable(rows, ["time", "coin", "side", "px", "sz", "dir"]));
+  emitSuccess({ user, count: rows.length, fills: rows }, out, () =>
+    renderTable(rows, ["time", "coin", "side", "px", "sz", "dir"]),
+  );
   return 0;
 }
 
-export async function fundingCmd(ctx: Context, opts: { sinceHours: number }, out: OutputOptions): Promise<number> {
+export async function fundingCmd(
+  ctx: Context,
+  opts: { sinceHours: number },
+  out: OutputOptions,
+): Promise<number> {
   const user = await accountOf(ctx);
   const startTime = Date.now() - opts.sinceHours * 3_600_000;
   const rows = await getUserFunding(user, startTime, ctx.infoOpts);
-  emitSuccess({ user, startTime, count: rows.length, funding: rows }, out, () => renderTable(rows, ["time", "coin", "usdc", "fundingRate"]));
+  emitSuccess({ user, startTime, count: rows.length, funding: rows }, out, () =>
+    renderTable(rows, ["time", "coin", "usdc", "fundingRate"]),
+  );
   return 0;
 }
 
-export async function ledgerCmd(ctx: Context, opts: { sinceHours: number }, out: OutputOptions): Promise<number> {
+export async function ledgerCmd(
+  ctx: Context,
+  opts: { sinceHours: number },
+  out: OutputOptions,
+): Promise<number> {
   const user = await accountOf(ctx);
   const startTime = Date.now() - opts.sinceHours * 3_600_000;
   const rows = await getLedger(user, startTime, ctx.infoOpts);
-  emitSuccess({ user, startTime, count: rows.length, ledger: rows }, out, () => renderTable(rows, ["time", "type", "usdc", "coin"]));
+  emitSuccess({ user, startTime, count: rows.length, ledger: rows }, out, () =>
+    renderTable(rows, ["time", "type", "usdc", "coin"]),
+  );
   return 0;
 }
 

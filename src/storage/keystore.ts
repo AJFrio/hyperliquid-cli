@@ -1,8 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { NotConfiguredError, UsageError } from "../errors.js";
 import { configDir } from "../config/config.js";
+import { NotConfiguredError, UsageError } from "../errors.js";
 import { open_, readFileOrNull, seal, writeFileAtomic } from "./secretbox.js";
 
 export const ENV_AGENT_KEY = "HLCLI_AGENT_PRIVATE_KEY";
@@ -70,7 +70,7 @@ function passphraseFor(dir: string, env: NodeJS.ProcessEnv): string {
 }
 
 function keychainAvailable(env: NodeJS.ProcessEnv): boolean {
-  return env["HLCLI_STORAGE_BACKEND"] !== "file";
+  return env.HLCLI_STORAGE_BACKEND !== "file";
 }
 
 async function keychainGet(account: string): Promise<string | null> {
@@ -98,7 +98,7 @@ export async function saveKey(
 ): Promise<KeySource> {
   const key = assertKey(privateKey, "private key");
   const dir = configDir(env);
-  const envIsFileOnly = env["HLCLI_STORAGE_BACKEND"] === "file";
+  const envIsFileOnly = env.HLCLI_STORAGE_BACKEND === "file";
 
   if (!envIsFileOnly) {
     if (await keychainSet(keychainAccount(env), key)) {
@@ -141,7 +141,7 @@ export async function loadKey(env: NodeJS.ProcessEnv = process.env): Promise<Loa
   }
 
   throw new NotConfiguredError(
-    "no agent key configured; run `hyperliquid init` once, or set " + ENV_AGENT_KEY,
+    `no agent key configured; run \`hyperliquid init\` once, or set ${ENV_AGENT_KEY}`,
   );
 }
 

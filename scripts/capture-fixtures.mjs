@@ -7,7 +7,7 @@
  * then review the diff before committing: an unexpected shape change is a
  * signal, not noise.
  */
-import { writeFileSync, mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const MAINNET = "https://api.hyperliquid.xyz/info";

@@ -11,10 +11,13 @@ function parseTimestamp(v: string): number {
 export function registerMarket(program: Command, write?: Writer): void {
   const mkt = program.command("market").description("public market data; requires no credentials");
 
-  mkt.command("mids").argument("[symbols...]", "symbols to filter; omit for all").action(async (symbols: string[], _o, cmd: Command) => {
-    const p = globalsFor(cmd);
-    process.exitCode = await market.midsCmd(contextFrom(p), symbols, outOf(p, write));
-  });
+  mkt
+    .command("mids")
+    .argument("[symbols...]", "symbols to filter; omit for all")
+    .action(async (symbols: string[], _o, cmd: Command) => {
+      const p = globalsFor(cmd);
+      process.exitCode = await market.midsCmd(contextFrom(p), symbols, outOf(p, write));
+    });
 
   mkt
     .command("list")
@@ -31,10 +34,13 @@ export function registerMarket(program: Command, write?: Writer): void {
       );
     });
 
-  mkt.command("ticker").argument("<symbol>").action(async (symbol, _o, cmd: Command) => {
-    const p = globalsFor(cmd);
-    process.exitCode = await market.tickerCmd(contextFrom(p), symbol, outOf(p, write));
-  });
+  mkt
+    .command("ticker")
+    .argument("<symbol>")
+    .action(async (symbol, _o, cmd: Command) => {
+      const p = globalsFor(cmd);
+      process.exitCode = await market.tickerCmd(contextFrom(p), symbol, outOf(p, write));
+    });
 
   mkt
     .command("candles")
@@ -51,25 +57,39 @@ export function registerMarket(program: Command, write?: Writer): void {
       process.exitCode = await market.candlesCmd(
         contextFrom(p),
         symbol,
-        { interval: o.interval, startTime: start, endTime: end, limit: o.limit === undefined ? undefined : Number(o.limit) },
+        {
+          interval: o.interval,
+          startTime: start,
+          endTime: end,
+          limit: o.limit === undefined ? undefined : Number(o.limit),
+        },
         outOf(p, write),
       );
     });
 
-  mkt.command("trades").argument("<symbol>").action(async (symbol, _o, cmd: Command) => {
-    const p = globalsFor(cmd);
-    process.exitCode = await market.tradesCmd(contextFrom(p), symbol, outOf(p, write));
-  });
+  mkt
+    .command("trades")
+    .argument("<symbol>")
+    .action(async (symbol, _o, cmd: Command) => {
+      const p = globalsFor(cmd);
+      process.exitCode = await market.tradesCmd(contextFrom(p), symbol, outOf(p, write));
+    });
 
-  mkt.command("book").argument("<symbol>").action(async (symbol, _o, cmd: Command) => {
-    const p = globalsFor(cmd);
-    process.exitCode = await market.bookCmd(contextFrom(p), symbol, outOf(p, write));
-  });
+  mkt
+    .command("book")
+    .argument("<symbol>")
+    .action(async (symbol, _o, cmd: Command) => {
+      const p = globalsFor(cmd);
+      process.exitCode = await market.bookCmd(contextFrom(p), symbol, outOf(p, write));
+    });
 
-  mkt.command("funding").description("predicted funding per venue (multi-venue)").action(async (_o, cmd: Command) => {
-    const p = globalsFor(cmd);
-    process.exitCode = await market.fundingCmd(contextFrom(p), outOf(p, write));
-  });
+  mkt
+    .command("funding")
+    .description("predicted funding per venue (multi-venue)")
+    .action(async (_o, cmd: Command) => {
+      const p = globalsFor(cmd);
+      process.exitCode = await market.fundingCmd(contextFrom(p), outOf(p, write));
+    });
 
   mkt.command("status").action(async (_o, cmd: Command) => {
     const p = globalsFor(cmd);

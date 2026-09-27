@@ -1,5 +1,14 @@
-import { randomBytes, scryptSync, createCipheriv, createDecipheriv } from "node:crypto";
-import { closeSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "node:crypto";
+import {
+  closeSync,
+  fsyncSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 
 /**
@@ -57,11 +66,24 @@ export function open_(sealed: string, passphrase: string): string {
   const key = deriveKey(passphrase, Buffer.from(box.salt, "hex"), box.N, box.r, box.p);
   const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(box.iv, "hex"));
   decipher.setAuthTag(Buffer.from(box.tag, "hex"));
-  return Buffer.concat([decipher.update(Buffer.from(box.ct, "hex")), decipher.final()]).toString("utf8");
+  return Buffer.concat([decipher.update(Buffer.from(box.ct, "hex")), decipher.final()]).toString(
+    "utf8",
+  );
 }
 
-function deriveKey(passphrase: string, salt: Buffer, N = SCRYPT_N, r = SCRYPT_R, p = SCRYPT_P): Buffer {
-  return scryptSync(passphrase.normalize("NFKC"), salt, KEY_LEN, { N, r, p, maxmem: SCRYPT_MAXMEM });
+function deriveKey(
+  passphrase: string,
+  salt: Buffer,
+  N = SCRYPT_N,
+  r = SCRYPT_R,
+  p = SCRYPT_P,
+): Buffer {
+  return scryptSync(passphrase.normalize("NFKC"), salt, KEY_LEN, {
+    N,
+    r,
+    p,
+    maxmem: SCRYPT_MAXMEM,
+  });
 }
 
 /** Write via a same-directory temp file so a crash cannot leave a torn secret. */

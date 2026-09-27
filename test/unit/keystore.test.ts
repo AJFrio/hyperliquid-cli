@@ -2,9 +2,9 @@ import { mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { NotConfiguredError } from "../../src/errors.js";
 import { configDir } from "../../src/config/config.js";
-import { clearKey, loadKey, saveKey, type LoadedSecret } from "../../src/storage/keystore.js";
+import { NotConfiguredError } from "../../src/errors.js";
+import { clearKey, type LoadedSecret, loadKey, saveKey } from "../../src/storage/keystore.js";
 
 const TEST_KEY = "0x2222222222222222222222222222222222222222222222222222222222222222";
 
@@ -13,9 +13,9 @@ const env: NodeJS.ProcessEnv = {};
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "hlcli-store-"));
-  env["HLCLI_CONFIG_DIR"] = dir;
-  delete env["HLCLI_AGENT_PRIVATE_KEY"];
-  delete env["HLCLI_KEYSTORE_PASSPHRASE"];
+  env.HLCLI_CONFIG_DIR = dir;
+  delete env.HLCLI_AGENT_PRIVATE_KEY;
+  delete env.HLCLI_KEYSTORE_PASSPHRASE;
 });
 
 afterEach(async () => {
@@ -41,7 +41,7 @@ describe("config dir isolation", () => {
 
 describe("key precedence: env beats stored key", () => {
   it("returns the env key without touching disk or the keychain", async () => {
-    env["HLCLI_AGENT_PRIVATE_KEY"] = TEST_KEY;
+    env.HLCLI_AGENT_PRIVATE_KEY = TEST_KEY;
     const loaded = await loadKey(fileEnv());
     expect(loaded.source).toBe("env");
     expect(loaded.privateKey).toBe(TEST_KEY);
@@ -78,7 +78,10 @@ describe("encrypted file backend", () => {
 
   it("records the scrypt parameters so the cost factor cannot silently regress", async () => {
     saveKey(TEST_KEY, fileEnv());
-    const parsed = JSON.parse(readFileSync(join(dir, "agent.key"), "utf8")) as { kdf: string; N: number };
+    const parsed = JSON.parse(readFileSync(join(dir, "agent.key"), "utf8")) as {
+      kdf: string;
+      N: number;
+    };
     expect(parsed.kdf).toBe("scrypt");
     expect(parsed.N).toBe(131072);
   });
@@ -107,7 +110,10 @@ describe("encrypted file backend", () => {
   });
 
   it("round-trips when a passphrase is supplied explicitly", async () => {
-    const withPass: NodeJS.ProcessEnv = { ...fileEnv(), HLCLI_KEYSTORE_PASSPHRASE: "correct horse battery staple" };
+    const withPass: NodeJS.ProcessEnv = {
+      ...fileEnv(),
+      HLCLI_KEYSTORE_PASSPHRASE: "correct horse battery staple",
+    };
     await saveKey(TEST_KEY, withPass);
     expect((await loadKey(withPass)).privateKey).toBe(TEST_KEY);
   });

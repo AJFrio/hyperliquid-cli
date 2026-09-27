@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { UsageError } from "../../src/errors.js";
 import {
   buildBatchModify,
   buildCancel,
@@ -12,7 +13,6 @@ import {
   type OrderInput,
   type OrderWire,
 } from "../../src/signing/buildAction.js";
-import { UsageError } from "../../src/errors.js";
 
 const order: OrderInput = {
   asset: 0,
@@ -34,7 +34,11 @@ const wire: OrderWire = {
 
 describe("buildOrder", () => {
   it("emits schema key order and no cloid when none was given", () => {
-    const action = buildOrder([order]) as { type: string; orders: Record<string, unknown>[]; grouping: string };
+    const action = buildOrder([order]) as {
+      type: string;
+      orders: Record<string, unknown>[];
+      grouping: string;
+    };
     expect(Object.keys(action)).toEqual(["type", "orders", "grouping"]);
     expect(action.type).toBe("order");
     expect(Object.keys(action.orders[0] as object)).toEqual(["a", "b", "p", "s", "r", "t"]);
@@ -46,7 +50,9 @@ describe("buildOrder", () => {
   });
 
   it("appends the cloid only when supplied", () => {
-    const withCloid = buildOrder([{ ...order, cloid: `0x${"ab".repeat(16)}` }]) as { orders: Record<string, unknown>[] };
+    const withCloid = buildOrder([{ ...order, cloid: `0x${"ab".repeat(16)}` }]) as {
+      orders: Record<string, unknown>[];
+    };
     expect(Object.keys(withCloid.orders[0] as object)).toEqual(["a", "b", "p", "s", "r", "t", "c"]);
   });
 
@@ -79,7 +85,10 @@ describe("buildOrder", () => {
 
 describe("THE FALSE-OMISSION RULE (cancel.f / cancelByCloid.f / modify.a / batchModify.a)", () => {
   it("omits f entirely when fast is false", () => {
-    const action = buildCancel([{ asset: 0, oid: 123 }], { fast: false }) as Record<string, unknown>;
+    const action = buildCancel([{ asset: 0, oid: 123 }], { fast: false }) as Record<
+      string,
+      unknown
+    >;
     expect(Object.keys(action)).toEqual(["type", "cancels"]);
     expect("f" in action).toBe(false);
   });
@@ -87,11 +96,13 @@ describe("THE FALSE-OMISSION RULE (cancel.f / cancelByCloid.f / modify.a / batch
   it("includes f when fast is true", () => {
     const action = buildCancel([{ asset: 0, oid: 123 }], { fast: true }) as Record<string, unknown>;
     expect(Object.keys(action)).toEqual(["type", "cancels", "f"]);
-    expect(action["f"]).toBe(true);
+    expect(action.f).toBe(true);
   });
 
   it("omits f on cancelByCloid when fast is false", () => {
-    const action = buildCancelByCloid([{ asset: 0, cloid: `0x${"cd".repeat(16)}` }], { fast: false }) as Record<string, unknown>;
+    const action = buildCancelByCloid([{ asset: 0, cloid: `0x${"cd".repeat(16)}` }], {
+      fast: false,
+    }) as Record<string, unknown>;
     expect("f" in action).toBe(false);
   });
 
@@ -102,24 +113,31 @@ describe("THE FALSE-OMISSION RULE (cancel.f / cancelByCloid.f / modify.a / batch
 
   it("includes a on modify when alwaysPlace is true", () => {
     const action = buildModify(123, wire, { alwaysPlace: true }) as Record<string, unknown>;
-    expect(action["a"]).toBe(true);
+    expect(action.a).toBe(true);
   });
 
   it("omits a on batchModify when alwaysPlace is false", () => {
-    const action = buildBatchModify([{ oid: 1, order: wire }], { alwaysPlace: false }) as Record<string, unknown>;
+    const action = buildBatchModify([{ oid: 1, order: wire }], { alwaysPlace: false }) as Record<
+      string,
+      unknown
+    >;
     expect("a" in action).toBe(false);
   });
 });
 
 describe("cancel key asymmetry", () => {
   it("uses short a/o keys for cancel", () => {
-    const action = buildCancel([{ asset: 7, oid: 99 }], { fast: false }) as { cancels: Record<string, unknown>[] };
+    const action = buildCancel([{ asset: 7, oid: 99 }], { fast: false }) as {
+      cancels: Record<string, unknown>[];
+    };
     expect(Object.keys(action.cancels[0] as object)).toEqual(["a", "o"]);
   });
 
   it("uses long asset/cloid keys for cancelByCloid", () => {
     const cloid = `0x${"ef".repeat(16)}`;
-    const action = buildCancelByCloid([{ asset: 7, cloid }], { fast: false }) as { cancels: Record<string, unknown>[] };
+    const action = buildCancelByCloid([{ asset: 7, cloid }], { fast: false }) as {
+      cancels: Record<string, unknown>[];
+    };
     expect(Object.keys(action.cancels[0] as object)).toEqual(["asset", "cloid"]);
     expect(action.cancels[0]?.cloid).toBe(cloid);
   });
@@ -129,7 +147,9 @@ describe("margin and schedule builders", () => {
   it("converts dollars into 1e-6 USDC units for isolated margin", () => {
     const action = buildUpdateIsolatedMargin(3, 1, true) as { ntli: number };
     expect(action.ntli).toBe(1_000_000);
-    expect(buildUpdateIsolatedMargin(3, 0.5, false) as { ntli: number }).toMatchObject({ ntli: 500_000 });
+    expect(buildUpdateIsolatedMargin(3, 0.5, false) as { ntli: number }).toMatchObject({
+      ntli: 500_000,
+    });
   });
 
   it("rejects a non-positive isolated margin amount", () => {
@@ -148,6 +168,8 @@ describe("margin and schedule builders", () => {
   });
 
   it("rejects a twap duration under one minute", () => {
-    expect(() => buildTwapOrder({ a: 0, b: true, s: "1", r: false, m: 0, t: false })).toThrow(/minutes/);
+    expect(() => buildTwapOrder({ a: 0, b: true, s: "1", r: false, m: 0, t: false })).toThrow(
+      /minutes/,
+    );
   });
 });

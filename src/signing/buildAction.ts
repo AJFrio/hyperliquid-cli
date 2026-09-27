@@ -75,13 +75,21 @@ export interface OrderInput {
   cloid?: string | undefined;
 }
 
-export function buildOrder(orders: OrderInput[], grouping: Grouping = "na", builder?: { b: string; f: number }): unknown {
+export function buildOrder(
+  orders: OrderInput[],
+  grouping: Grouping = "na",
+  builder?: { b: string; f: number },
+): unknown {
   if (orders.length === 0) {
     throw new UsageError("INVALID_INPUT", "at least one order is required");
   }
   const wire = orders.map((o) => {
     if (!Number.isInteger(o.asset) || o.asset < 0) {
-      throw new UsageError("INVALID_INPUT", `asset id must be a non-negative integer, got ${String(o.asset)}`, { asset: o.asset });
+      throw new UsageError(
+        "INVALID_INPUT",
+        `asset id must be a non-negative integer, got ${String(o.asset)}`,
+        { asset: o.asset },
+      );
     }
     assertDecimalString(o.limitPx, "limit price");
     assertDecimalString(o.sz, "size");
@@ -107,8 +115,15 @@ export function buildCancel(
   cancels: { asset: number; oid: number }[],
   opts: { fast: boolean },
 ): unknown {
-  const action = { type: "cancel" as const, cancels: cancels.map((c) => ({ a: c.asset, o: c.oid })), f: opts.fast };
-  return canonicalize(CancelRequest.entries.action, omitFalseFlag(action as unknown as Record<string, unknown>, "f"));
+  const action = {
+    type: "cancel" as const,
+    cancels: cancels.map((c) => ({ a: c.asset, o: c.oid })),
+    f: opts.fast,
+  };
+  return canonicalize(
+    CancelRequest.entries.action,
+    omitFalseFlag(action as unknown as Record<string, unknown>, "f"),
+  );
 }
 
 export function buildCancelByCloid(
@@ -116,12 +131,22 @@ export function buildCancelByCloid(
   opts: { fast: boolean },
 ): unknown {
   const action = { type: "cancelByCloid" as const, cancels, f: opts.fast };
-  return canonicalize(CancelByCloidRequest.entries.action, omitFalseFlag(action as unknown as Record<string, unknown>, "f"));
+  return canonicalize(
+    CancelByCloidRequest.entries.action,
+    omitFalseFlag(action as unknown as Record<string, unknown>, "f"),
+  );
 }
 
-export function buildModify(oid: number | string, order: OrderWire, opts: { alwaysPlace: boolean }): unknown {
+export function buildModify(
+  oid: number | string,
+  order: OrderWire,
+  opts: { alwaysPlace: boolean },
+): unknown {
   const action = { type: "modify" as const, oid, order, a: opts.alwaysPlace };
-  return canonicalize(ModifyRequest.entries.action, omitFalseFlag(action as unknown as Record<string, unknown>, "a"));
+  return canonicalize(
+    ModifyRequest.entries.action,
+    omitFalseFlag(action as unknown as Record<string, unknown>, "a"),
+  );
 }
 
 export function buildBatchModify(
@@ -129,7 +154,10 @@ export function buildBatchModify(
   opts: { alwaysPlace: boolean },
 ): unknown {
   const action = { type: "batchModify" as const, modifies, a: opts.alwaysPlace };
-  return canonicalize(BatchModifyRequest.entries.action, omitFalseFlag(action as unknown as Record<string, unknown>, "a"));
+  return canonicalize(
+    BatchModifyRequest.entries.action,
+    omitFalseFlag(action as unknown as Record<string, unknown>, "a"),
+  );
 }
 
 export function buildScheduleCancel(timeMs?: number): unknown {
@@ -141,21 +169,43 @@ export function buildScheduleCancel(timeMs?: number): unknown {
 
 export function buildUpdateLeverage(asset: number, leverage: number, isCross: boolean): unknown {
   if (!Number.isInteger(asset) || asset < 0) {
-    throw new UsageError("INVALID_INPUT", `asset id must be a non-negative integer, got ${String(asset)}`, { asset });
+    throw new UsageError(
+      "INVALID_INPUT",
+      `asset id must be a non-negative integer, got ${String(asset)}`,
+      { asset },
+    );
   }
   if (!Number.isInteger(leverage) || leverage < 1) {
-    throw new UsageError("INVALID_INPUT", `leverage must be a positive integer, got ${String(leverage)}`, { leverage });
+    throw new UsageError(
+      "INVALID_INPUT",
+      `leverage must be a positive integer, got ${String(leverage)}`,
+      { leverage },
+    );
   }
-  return canonicalize(UpdateLeverageRequest.entries.action, { type: "updateLeverage", asset, isCross, leverage });
+  return canonicalize(UpdateLeverageRequest.entries.action, {
+    type: "updateLeverage",
+    asset,
+    isCross,
+    leverage,
+  });
 }
 
 /** `ntli` is in 1e-6 USDC units: 1_000_000 == $1. */
 export function buildUpdateIsolatedMargin(asset: number, usd: number, isBuy: boolean): unknown {
   const ntli = Math.round(usd * 1_000_000);
   if (!Number.isFinite(ntli) || ntli <= 0) {
-    throw new UsageError("INVALID_INPUT", `isolated margin amount must be positive, got ${String(usd)}`, { usd });
+    throw new UsageError(
+      "INVALID_INPUT",
+      `isolated margin amount must be positive, got ${String(usd)}`,
+      { usd },
+    );
   }
-  return canonicalize(UpdateIsolatedMarginRequest.entries.action, { type: "updateIsolatedMargin", asset, isBuy, ntli });
+  return canonicalize(UpdateIsolatedMarginRequest.entries.action, {
+    type: "updateIsolatedMargin",
+    asset,
+    isBuy,
+    ntli,
+  });
 }
 
 export function buildTopUpIsolatedOnlyMargin(asset: number, leverage: number): unknown {
@@ -166,16 +216,31 @@ export function buildTopUpIsolatedOnlyMargin(asset: number, leverage: number): u
   });
 }
 
-export function buildTwapOrder(twap: { a: number; b: boolean; s: string; r: boolean; m: number; t: boolean }): unknown {
+export function buildTwapOrder(twap: {
+  a: number;
+  b: boolean;
+  s: string;
+  r: boolean;
+  m: number;
+  t: boolean;
+}): unknown {
   assertDecimalString(twap.s, "twap size");
   if (!Number.isInteger(twap.m) || twap.m < 1) {
-    throw new UsageError("INVALID_INPUT", `twap duration must be a positive integer number of minutes, got ${String(twap.m)}`, { minutes: twap.m });
+    throw new UsageError(
+      "INVALID_INPUT",
+      `twap duration must be a positive integer number of minutes, got ${String(twap.m)}`,
+      { minutes: twap.m },
+    );
   }
   return canonicalize(TwapOrderRequest.entries.action, { type: "twapOrder", twap });
 }
 
 export function buildTwapCancel(asset: number, twapId: number): unknown {
-  return canonicalize(TwapCancelRequest.entries.action, { type: "twapCancel", a: asset, t: twapId });
+  return canonicalize(TwapCancelRequest.entries.action, {
+    type: "twapCancel",
+    a: asset,
+    t: twapId,
+  });
 }
 
 function assertDecimalString(value: string, what: string): void {
@@ -183,9 +248,15 @@ function assertDecimalString(value: string, what: string): void {
     throw new UsageError("INVALID_INPUT", `${what} must be a non-empty decimal string`, { value });
   }
   if (!/^\d+(\.\d+)?$/.test(value)) {
-    throw new UsageError("INVALID_INPUT", `${what} must be a positive decimal string like "0.01", got ${value}`, { value });
+    throw new UsageError(
+      "INVALID_INPUT",
+      `${what} must be a positive decimal string like "0.01", got ${value}`,
+      { value },
+    );
   }
   if (Number(value) <= 0) {
-    throw new UsageError("INVALID_INPUT", `${what} must be greater than zero, got ${value}`, { value });
+    throw new UsageError("INVALID_INPUT", `${what} must be greater than zero, got ${value}`, {
+      value,
+    });
   }
 }

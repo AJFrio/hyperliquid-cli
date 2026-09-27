@@ -25,7 +25,9 @@ export function contextFrom(p: Parsed, env: NodeJS.ProcessEnv = process.env): Co
   // Fold --config-dir into the env the storage layer reads, so the key store,
   // config file and machine key all land in the same isolated directory.
   const effectiveEnv: NodeJS.ProcessEnv =
-    p.configDir !== undefined && p.configDir.length > 0 ? { ...env, HLCLI_CONFIG_DIR: p.configDir } : env;
+    p.configDir !== undefined && p.configDir.length > 0
+      ? { ...env, HLCLI_CONFIG_DIR: p.configDir }
+      : env;
   const flags: GlobalFlags = {
     testnet: p.testnet,
     dryRun: p.dryRun,

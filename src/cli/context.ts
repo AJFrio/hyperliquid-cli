@@ -1,11 +1,11 @@
-import { z } from "zod";
-import { AssetResolver, type PerpAsset, type SpotPair } from "../assets/resolve.js";
-import { getMeta, getSpotMeta, type InfoOptions } from "../api/info.js";
-import { configDir, configSchema, type HlConfig, type Network } from "../config/config.js";
 import { join } from "node:path";
-import { NotConfiguredError, UsageError } from "../errors.js";
-import { loadKey, type LoadedSecret } from "../storage/keystore.js";
 import { privateKeyToAccount } from "viem/accounts";
+import { z } from "zod";
+import { getMeta, getSpotMeta, type InfoOptions } from "../api/info.js";
+import { AssetResolver, type PerpAsset, type SpotPair } from "../assets/resolve.js";
+import { configDir, configSchema, type HlConfig, type Network } from "../config/config.js";
+import { NotConfiguredError, UsageError } from "../errors.js";
+import { type LoadedSecret, loadKey } from "../storage/keystore.js";
 
 export interface GlobalFlags {
   testnet: boolean;
@@ -36,7 +36,9 @@ export class Context {
   }
 
   get infoOpts(): InfoOptions {
-    const env: { testnet: boolean; fetchImpl?: typeof fetch | undefined } = { testnet: this.flags.testnet };
+    const env: { testnet: boolean; fetchImpl?: typeof fetch | undefined } = {
+      testnet: this.flags.testnet,
+    };
     return env;
   }
 
@@ -59,13 +61,20 @@ export class Context {
     try {
       parsed = JSON.parse(raw);
     } catch {
-      throw new UsageError("INVALID_INPUT", `config file is not valid JSON: ${join(this.dir(), "config.json")}`);
+      throw new UsageError(
+        "INVALID_INPUT",
+        `config file is not valid JSON: ${join(this.dir(), "config.json")}`,
+      );
     }
     const result = configSchema.safeParse(parsed);
     if (!result.success) {
-      throw new UsageError("INVALID_INPUT", `config file failed validation: ${join(this.dir(), "config.json")}`, {
-        issues: result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`),
-      });
+      throw new UsageError(
+        "INVALID_INPUT",
+        `config file failed validation: ${join(this.dir(), "config.json")}`,
+        {
+          issues: result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`),
+        },
+      );
     }
     this.cfg = result.data;
     return this.cfg;

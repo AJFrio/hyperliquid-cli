@@ -1,14 +1,14 @@
 import { readFileSync } from "node:fs";
 import { privateKeyToAccount } from "viem/accounts";
-import { approveAgentAction, signAndSendUserSigned, ApproveAgentTypes } from "../api/exchange.js";
-import { emitSuccess, type OutputOptions } from "../cli/output.js";
+import { z } from "zod";
+import { ApproveAgentTypes, approveAgentAction, signAndSendUserSigned } from "../api/exchange.js";
 import type { Context } from "../cli/context.js";
+import { addressSchema } from "../cli/context.js";
+import { emitSuccess, type OutputOptions } from "../cli/output.js";
 import { CONFIG_SCHEMA_VERSION, type Network } from "../config/config.js";
 import { UsageError } from "../errors.js";
 import { clearKey, saveKey } from "../storage/keystore.js";
 import { writeFileAtomic } from "../storage/secretbox.js";
-import { addressSchema } from "../cli/context.js";
-import { z } from "zod";
 
 export const initOptionsSchema = z.object({
   accountAddress: addressSchema,
@@ -28,7 +28,12 @@ export const initOptionsSchema = z.object({
  */
 export async function initCmd(
   ctx: Context,
-  input: { accountAddress: string; privateKey: string; network: Network; agentName?: string | undefined },
+  input: {
+    accountAddress: string;
+    privateKey: string;
+    network: Network;
+    agentName?: string | undefined;
+  },
   out: OutputOptions,
 ): Promise<number> {
   const parsed = initOptionsSchema.safeParse(input);
@@ -120,9 +125,17 @@ export interface ApproveArgs {
  * key - not the stored agent key. The master key is supplied per invocation and
  * is never written to disk or to the keystore.
  */
-export async function agentApproveCmd(ctx: Context, args: ApproveArgs, out: OutputOptions): Promise<number> {
+export async function agentApproveCmd(
+  ctx: Context,
+  args: ApproveArgs,
+  out: OutputOptions,
+): Promise<number> {
   const cfg = await ctx.config();
-  const agentAddress = z.string().regex(/^0x[0-9a-fA-F]{40}$/).parse(args.agentAddress).toLowerCase();
+  const agentAddress = z
+    .string()
+    .regex(/^0x[0-9a-fA-F]{40}$/)
+    .parse(args.agentAddress)
+    .toLowerCase();
   const nonce = Date.now();
   const action = approveAgentAction({
     agentAddress,
@@ -176,9 +189,15 @@ export async function agentStatusCmd(ctx: Context, out: OutputOptions): Promise<
 
 function redactSignature(envelope: unknown): unknown {
   if (typeof envelope !== "object" || envelope === null) return envelope;
-  const clone = JSON.parse(JSON.stringify(envelope)) as { signature?: { r: string; s: string; v: number } };
+  const clone = JSON.parse(JSON.stringify(envelope)) as {
+    signature?: { r: string; s: string; v: number };
+  };
   if (clone.signature !== undefined) {
-    clone.signature = { r: `${String(clone.signature.r).slice(0, 10)}...`, s: `${String(clone.signature.s).slice(0, 10)}...`, v: clone.signature.v };
+    clone.signature = {
+      r: `${String(clone.signature.r).slice(0, 10)}...`,
+      s: `${String(clone.signature.s).slice(0, 10)}...`,
+      v: clone.signature.v,
+    };
   }
   return clone;
 }
