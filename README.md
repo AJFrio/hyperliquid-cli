@@ -26,8 +26,14 @@ exit=2
 
 ## Install
 
+Install from this repository. The package is not published to npm.
+
 ```bash
-npm install -g hyperliquid-cli
+git clone https://github.com/AJFrio/hyperliquid-cli.git
+cd hyperliquid-cli
+npm install
+npm run build
+npm install -g .
 hyperliquid --version
 ```
 
