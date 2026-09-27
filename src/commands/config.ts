@@ -12,6 +12,7 @@ import { writeFileAtomic } from "../storage/secretbox.js";
 
 export const initOptionsSchema = z.object({
   accountAddress: addressSchema,
+  agentAddress: addressSchema.optional(),
   privateKey: z
     .string()
     .regex(/^0x[0-9a-fA-F]{64}$/, "private key must be 0x + 64 hex chars")
@@ -30,6 +31,7 @@ export async function initCmd(
   ctx: Context,
   input: {
     accountAddress: string;
+    agentAddress?: string | undefined;
     privateKey: string;
     network: Network;
     agentName?: string | undefined;
@@ -42,10 +44,22 @@ export async function initCmd(
       issues: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`),
     });
   }
-  const { accountAddress, privateKey, network, agentName } = parsed.data;
+  const {
+    accountAddress,
+    agentAddress: expectedAgentAddress,
+    privateKey,
+    network,
+    agentName,
+  } = parsed.data;
 
   const wallet = privateKeyToAccount(privateKey);
   const agentAddress = wallet.address.toLowerCase();
+  if (expectedAgentAddress !== undefined && expectedAgentAddress !== agentAddress) {
+    throw new UsageError(
+      "INVALID_INPUT",
+      "API wallet address does not match the address derived from its private key",
+    );
+  }
 
   if (accountAddress === agentAddress) {
     // Legitimate for single-key trading, but the two-wallet model is the norm;

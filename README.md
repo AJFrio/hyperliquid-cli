@@ -35,6 +35,7 @@ npm install
 npm run build
 npm install -g .
 hyperliquid --version
+hl --version
 ```
 
 Requires Node.js 20.11 or newer. The Hyperliquid TypeScript SDK
@@ -77,24 +78,26 @@ single most common thing people get wrong:
 - the **account address** (your master or sub-account), which owns the positions
   and balance. This is public, and it is **not derivable** from the agent key.
 
-An *address* cannot sign anything. `hyperliquid init` collects both:
+An *address* cannot sign anything. Run `hl init` for guided onboarding. It asks
+for the account address, optionally checks the API wallet address, and collects
+the API wallet private key in a hidden terminal prompt:
 
 ```bash
-hyperliquid init \
-  --account 0xYourMasterOrSubAccountAddress \
-  --key-file ./agent.key \
-  --network mainnet
+hl init
 ```
 
-The key is never accepted as a command-line value, because argv is visible in
-shell history and in `ps`. Use `--key-file` or the environment:
+The API wallet address is checked against the address derived from its private
+key. The key is never accepted as a command-line value, because argv is visible
+in shell history and in `ps`. For scripted setup, use `--key-file` or the
+environment:
 
 ```bash
 export HLCLI_AGENT_PRIVATE_KEY=0x...
-hyperliquid init --account 0xYourAddress
+hyperliquid init --account 0xYourMasterOrSubAccountAddress --agent-address 0xYourApiWalletAddress
 ```
 
-Once configured, later invocations reuse the stored key and never prompt.
+Alternatively, provide `--key-file <path>`. Once configured, later invocations
+reuse the stored key and never prompt. `hl` and `hyperliquid` run the same CLI.
 
 ### Registering the agent
 
@@ -124,7 +127,8 @@ hot-wallet client.
   temp-file + `fsync` + `rename` sequence so a crash cannot leave a torn key.
   The scrypt parameters are recorded in the file so the cost factor cannot
   silently regress.
-  Note the honest limit: this fallback protects the key from accidental
+  The encrypted file is used only when the OS keychain is unavailable. Note
+  the honest limit: this fallback protects the key from accidental
   disclosure (backups, stray greps, a synced directory). It does not protect
   against code already running as your user. That is why the keychain is the
   default.

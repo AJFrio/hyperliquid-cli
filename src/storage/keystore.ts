@@ -102,7 +102,15 @@ export async function saveKey(
 
   if (!envIsFileOnly) {
     if (await keychainSet(keychainAccount(env), key)) {
-      writeFileAtomic(join(dir, SECRET_FILE), seal(key, passphraseFor(dir, env)));
+      // The OS keychain is the primary backend. Remove any encrypted fallback
+      // left by an earlier headless setup so we keep only one on-device copy.
+      for (const name of [SECRET_FILE, MACHINE_KEY_FILE]) {
+        try {
+          rmSync(join(dir, name), { force: true });
+        } catch {
+          /* best effort cleanup */
+        }
+      }
       return "keychain";
     }
   }
