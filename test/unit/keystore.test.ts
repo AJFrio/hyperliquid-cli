@@ -19,7 +19,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  await clearKey();
+  await clearKey(env);
 });
 
 // Force the encrypted-file backend so the suite never writes to the real OS

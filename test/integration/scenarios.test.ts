@@ -239,6 +239,11 @@ describe("S3 - edge cases produce exit 2 and a structured error", () => {
       argv: ["order", "place", "BTC", "--size", "-5", "--price", "1"],
       code: "INVALID_INPUT",
     },
+    {
+      name: "spot size exceeds base token precision",
+      argv: ["order", "place", "@1", "--spot", "--size", "1.001", "--price", "1"],
+      code: "INVALID_INPUT",
+    },
     { name: "bad interval", argv: ["market", "candles", "BTC", "--interval", "7z"], code: "USAGE" },
     { name: "missing price", argv: ["order", "place", "BTC", "--size", "1"], code: "USAGE" },
     {
