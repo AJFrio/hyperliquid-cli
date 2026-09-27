@@ -7,12 +7,14 @@ import { ENV_AGENT_KEY } from "../../storage/keystore.js";
 import { contextFrom, globalsFor, outOf } from "../globals.js";
 import type { Writer } from "../output.js";
 
+const ENV_MASTER_KEY = "HLCLI_MASTER_PRIVATE_KEY";
+
 /**
  * Read a secret from a file or an env var, never from argv.
  *
  * argv values are visible in shell history and in `ps` output, so this CLI
  * refuses to accept a bare key flag. Key files, environment variables, and
- * init's hidden terminal prompt are the supported channels.
+ * hidden terminal prompts during setup or approval are the supported channels.
  */
 function secretFromSource(
   file: string | undefined,
@@ -31,16 +33,6 @@ function secretFromSource(
   return undefined;
 }
 
-function readSecret(
-  file: string | undefined,
-  envVar: string,
-  env: NodeJS.ProcessEnv = process.env,
-): string {
-  const secret = secretFromSource(file, envVar, env);
-  if (secret !== undefined) return secret;
-  throw new UsageError("USAGE", `provide --key-file <path> or set ${envVar}`);
-}
-
 async function promptLine(message: string): Promise<string> {
   if (!process.stdin.isTTY) {
     throw new UsageError(
@@ -57,16 +49,13 @@ async function promptLine(message: string): Promise<string> {
 }
 
 /** Read a key without echoing its characters to the terminal. */
-async function promptPrivateKey(): Promise<string> {
+async function promptHiddenSecret(prompt: string, missingMessage: string): Promise<string> {
   const stdin = process.stdin;
   if (!stdin.isTTY || typeof stdin.setRawMode !== "function") {
-    throw new UsageError(
-      "USAGE",
-      `provide --key-file <path>, set ${ENV_AGENT_KEY}, or run init in a terminal for a hidden prompt`,
-    );
+    throw new UsageError("USAGE", missingMessage);
   }
 
-  process.stderr.write("API wallet private key (input hidden): ");
+  process.stderr.write(prompt);
   return new Promise((resolve, reject) => {
     const wasRaw = stdin.isRaw;
     let value = "";
@@ -76,6 +65,9 @@ async function promptPrivateKey(): Promise<string> {
       finished = true;
       stdin.off("data", onData);
       stdin.setRawMode(wasRaw);
+      // setRawMode() does not stop the stream. Leaving stdin flowing kept
+      // completed one-shot CLI commands alive until the user pressed Ctrl+C.
+      stdin.pause();
       process.stderr.write("\n");
       if (error !== undefined) reject(error);
       else resolve(value);
@@ -132,7 +124,12 @@ export function registerSetup(program: Command, write?: Writer): void {
           (await promptLine("API wallet address (optional; press Enter to derive it): ")) ||
           undefined;
       }
-      const key = secretFromSource(o.keyFile, ENV_AGENT_KEY) ?? (await promptPrivateKey());
+      const key =
+        secretFromSource(o.keyFile, ENV_AGENT_KEY) ??
+        (await promptHiddenSecret(
+          "API wallet private key (input hidden): ",
+          `provide --key-file <path>, set ${ENV_AGENT_KEY}, or run init in a terminal for a hidden prompt`,
+        ));
       process.exitCode = await configCmd.initCmd(
         contextFrom(p),
         {
@@ -176,12 +173,25 @@ export function registerSetup(program: Command, write?: Writer): void {
       const o = opts as { agentAddress?: string; masterKeyFile?: string; agentName?: string };
       const ctx = contextFrom(p);
       const cfg = await ctx.config();
+      const agentAddress = o.agentAddress ?? cfg.agentAddress;
+      if (agentAddress.toLowerCase() === cfg.accountAddress) {
+        throw new UsageError(
+          "UNSUPPORTED",
+          "the API wallet and account addresses match; single-key trading does not need agent approval",
+        );
+      }
+      const masterKey =
+        secretFromSource(o.masterKeyFile, ENV_MASTER_KEY) ??
+        (await promptHiddenSecret(
+          "Master private key (input hidden; used once, never stored): ",
+          `provide --master-key-file <path>, set ${ENV_MASTER_KEY}, or run this command in a terminal for a hidden prompt`,
+        ));
       process.exitCode = await configCmd.agentApproveCmd(
         ctx,
         {
-          agentAddress: o.agentAddress ?? cfg.agentAddress,
+          agentAddress,
           agentName: o.agentName,
-          masterKey: readSecret(o.masterKeyFile, "HLCLI_MASTER_PRIVATE_KEY"),
+          masterKey,
           dryRun: p.dryRun,
         },
         outOf(p, write),

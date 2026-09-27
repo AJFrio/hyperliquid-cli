@@ -1,6 +1,7 @@
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { privateKeyToAccount } from "viem/accounts";
 import { beforeAll, describe, expect, it } from "vitest";
 import { run } from "../../src/index.js";
 
@@ -29,6 +30,7 @@ function sandbox(): string {
 
 const THROWAWAY_KEY = `0x${"3".repeat(64)}`;
 const THROWAWAY_ACCOUNT = "0x1111111111111111111111111111111111111111";
+const THROWAWAY_AGENT = privateKeyToAccount(THROWAWAY_KEY as `0x${string}`).address.toLowerCase();
 
 describe("S1 - happy path: market data for a selected market", () => {
   it("returns a BTC price with no credentials configured at all", async () => {
@@ -194,6 +196,38 @@ describe("S2 - one-time secure setup, then reuse without prompting", () => {
       if (prev === undefined) delete process.env.HLCLI_AGENT_PRIVATE_KEY;
       else process.env.HLCLI_AGENT_PRIVATE_KEY = prev;
     }
+  });
+
+  it("does not recommend or request agent approval for single-key trading", async () => {
+    const dir = sandbox();
+    const cfg = join(dir, "cfg");
+    const keyFile = join(dir, "agent.key");
+    const { writeFileSync, chmodSync } = await import("node:fs");
+    writeFileSync(keyFile, THROWAWAY_KEY);
+    chmodSync(keyFile, 0o600);
+
+    const init = capture();
+    const initCode = await run(
+      ["--config-dir", cfg, "init", "--account", THROWAWAY_AGENT, "--key-file", keyFile],
+      init.io,
+    );
+    expect(initCode).toBe(0);
+    expect(JSON.parse(init.out.join(""))).toMatchObject({
+      accountAddress: THROWAWAY_AGENT,
+      agentAddress: THROWAWAY_AGENT,
+      nextStep: "single-key trading is configured; no agent approval is needed",
+    });
+
+    const approval = capture();
+    const approvalCode = await run(["--config-dir", cfg, "agent", "approve"], approval.io);
+    expect(approvalCode).toBe(2);
+    expect(JSON.parse(approval.err.join(""))).toMatchObject({
+      error: {
+        code: "UNSUPPORTED",
+        message:
+          "the API wallet and account addresses match; single-key trading does not need agent approval",
+      },
+    });
   });
 });
 
