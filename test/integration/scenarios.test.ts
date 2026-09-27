@@ -389,10 +389,14 @@ describe("S6 - no fund-movement command exists", () => {
     }
   });
 
-  it("rejects a withdraw verb at the dispatcher", async () => {
+  it("rejects a withdraw verb at the dispatcher with a JSON error, not plain text", async () => {
     const cap = capture();
     const code = await run(["withdraw", "--amount", "1"], cap.io);
     expect(code).toBe(2);
+    // The documented contract is that EVERY error is JSON, including typos.
+    expect(() => JSON.parse(cap.err.join(""))).not.toThrow();
+    expect(JSON.parse(cap.err.join(""))).toMatchObject({ error: { code: "USAGE" } });
+    expect(cap.err.join("")).toContain("unknown command");
   });
 
   it("never wires the user-signed fund actions into the exchange client", async () => {
@@ -445,6 +449,26 @@ describe("output contract", () => {
     expect(text).toContain("coin");
     expect(text).toContain("BTC");
     expect(() => JSON.parse(text)).toThrow();
+  });
+
+  it("emits JSON for an unknown subcommand rather than commander plain text", async () => {
+    const cap = capture();
+    const code = await run(["market", "midz"], cap.io);
+    expect(code).toBe(2);
+    expect(() => JSON.parse(cap.err.join(""))).not.toThrow();
+  });
+
+  it("emits JSON for an unknown option rather than commander plain text", async () => {
+    const cap = capture();
+    const code = await run(["market", "mids", "--nope"], cap.io);
+    expect(code).toBe(2);
+    expect(() => JSON.parse(cap.err.join(""))).not.toThrow();
+  });
+
+  it("keeps human help text for --help", async () => {
+    const cap = capture();
+    expect(await run(["order", "--help"], cap.io)).toBe(0);
+    expect(cap.out.join("")).toContain("Usage: hyperliquid order");
   });
 
   it("--help exits 0", async () => {
