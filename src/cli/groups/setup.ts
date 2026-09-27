@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { createInterface } from "node:readline/promises";
 import type { Command } from "commander";
 import * as configCmd from "../../commands/config.js";
 import { UsageError } from "../../errors.js";
@@ -10,14 +11,14 @@ import type { Writer } from "../output.js";
  * Read a secret from a file or an env var, never from argv.
  *
  * argv values are visible in shell history and in `ps` output, so this CLI
- * refuses to accept a bare key flag. `--*-key-file` and the env var are the
- * only supported channels.
+ * refuses to accept a bare key flag. Key files, environment variables, and
+ * init's hidden terminal prompt are the supported channels.
  */
-function readSecret(
+function secretFromSource(
   file: string | undefined,
   envVar: string,
   env: NodeJS.ProcessEnv = process.env,
-): string {
+): string | undefined {
   if (file !== undefined) {
     try {
       return readFileSync(file, "utf8").trim();
@@ -27,28 +28,117 @@ function readSecret(
   }
   const fromEnv = env[envVar];
   if (fromEnv !== undefined && fromEnv.length > 0) return fromEnv.trim();
+  return undefined;
+}
+
+function readSecret(
+  file: string | undefined,
+  envVar: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  const secret = secretFromSource(file, envVar, env);
+  if (secret !== undefined) return secret;
   throw new UsageError("USAGE", `provide --key-file <path> or set ${envVar}`);
+}
+
+async function promptLine(message: string): Promise<string> {
+  if (!process.stdin.isTTY) {
+    throw new UsageError(
+      "USAGE",
+      "interactive setup requires a terminal; provide the missing options",
+    );
+  }
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
+  try {
+    return (await rl.question(message)).trim();
+  } finally {
+    rl.close();
+  }
+}
+
+/** Read a key without echoing its characters to the terminal. */
+async function promptPrivateKey(): Promise<string> {
+  const stdin = process.stdin;
+  if (!stdin.isTTY || typeof stdin.setRawMode !== "function") {
+    throw new UsageError(
+      "USAGE",
+      `provide --key-file <path>, set ${ENV_AGENT_KEY}, or run init in a terminal for a hidden prompt`,
+    );
+  }
+
+  process.stderr.write("API wallet private key (input hidden): ");
+  return new Promise((resolve, reject) => {
+    const wasRaw = stdin.isRaw;
+    let value = "";
+    let finished = false;
+    const finish = (error?: Error): void => {
+      if (finished) return;
+      finished = true;
+      stdin.off("data", onData);
+      stdin.setRawMode(wasRaw);
+      process.stderr.write("\n");
+      if (error !== undefined) reject(error);
+      else resolve(value);
+    };
+    const onData = (chunk: Buffer | string): void => {
+      for (const char of chunk.toString()) {
+        if (char === "\u0003" || char === "\u0004") {
+          finish(new UsageError("USAGE", "interactive setup canceled"));
+          return;
+        }
+        if (char === "\r" || char === "\n") {
+          finish();
+          return;
+        }
+        if (char === "\u007f" || char === "\b") {
+          value = value.slice(0, -1);
+        } else if (char >= " " && char <= "~") {
+          value += char;
+        }
+      }
+    };
+
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.on("data", onData);
+  });
 }
 
 export function registerSetup(program: Command, write?: Writer): void {
   program
     .command("init")
     .description("one-time setup: store the agent signing key and the account address it trades")
-    .requiredOption(
+    .option(
       "--account <address>",
-      "account (master/sub-account) address that owns the positions",
+      "account (master/sub-account) address that owns the positions; prompted if omitted",
     )
+    .option("--agent-address <address>", "API wallet address; checked against the private key")
     .option("--key-file <path>", `file containing the agent private key (or set ${ENV_AGENT_KEY})`)
     .option("--network <n>", "mainnet or testnet", "mainnet")
     .option("--agent-name <name>", "label for the agent registration")
     .action(async (opts, cmd: Command) => {
       const p = globalsFor(cmd);
-      const o = opts as { account: string; keyFile?: string; network: string; agentName?: string };
+      const o = opts as {
+        account?: string;
+        agentAddress?: string;
+        keyFile?: string;
+        network: string;
+        agentName?: string;
+      };
+      const account = o.account ?? (await promptLine("Account address (master or sub-account): "));
+      let agentAddress = o.agentAddress;
+      if (agentAddress === undefined && process.stdin.isTTY) {
+        agentAddress =
+          (await promptLine("API wallet address (optional; press Enter to derive it): ")) ||
+          undefined;
+      }
+      const key = secretFromSource(o.keyFile, ENV_AGENT_KEY) ?? (await promptPrivateKey());
       process.exitCode = await configCmd.initCmd(
         contextFrom(p),
         {
-          accountAddress: o.account,
-          privateKey: readSecret(o.keyFile, ENV_AGENT_KEY),
+          accountAddress: account,
+          agentAddress,
+          privateKey: key,
           network: o.network === "testnet" ? "testnet" : "mainnet",
           agentName: o.agentName,
         },

@@ -140,6 +140,37 @@ describe("S2 - one-time secure setup, then reuse without prompting", () => {
     expect(JSON.parse(c.err.join(""))).toMatchObject({ error: { code: "INVALID_INPUT" } });
   });
 
+  it("rejects an API wallet address that does not match its private key", async () => {
+    const dir = sandbox();
+    const keyFile = join(dir, "agent.key");
+    const { writeFileSync, chmodSync } = await import("node:fs");
+    writeFileSync(keyFile, THROWAWAY_KEY);
+    chmodSync(keyFile, 0o600);
+
+    const c = capture();
+    const code = await run(
+      [
+        "--config-dir",
+        join(dir, "cfg"),
+        "init",
+        "--account",
+        THROWAWAY_ACCOUNT,
+        "--agent-address",
+        THROWAWAY_ACCOUNT,
+        "--key-file",
+        keyFile,
+      ],
+      c.io,
+    );
+    expect(code).toBe(2);
+    expect(JSON.parse(c.err.join(""))).toMatchObject({
+      error: {
+        code: "INVALID_INPUT",
+        message: "API wallet address does not match the address derived from its private key",
+      },
+    });
+  });
+
   it("accepts the key from the environment instead of a file", async () => {
     const dir = sandbox();
     const c = capture();

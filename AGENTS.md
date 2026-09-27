@@ -12,18 +12,22 @@ programmatically.
 3. **Market commands never require credentials.** Do not run `init` before
    `market *`; it is unnecessary and the read path will not touch the key store.
 4. **`--dry-run` posts nothing.** Use it to validate an order before sending.
-5. **Never pass a private key as an argument.** Use `--key-file` or
-   `HLCLI_AGENT_PRIVATE_KEY`. argv is visible to other processes.
+5. **Never pass a private key as an argument.** Use `--key-file`,
+   `HLCLI_AGENT_PRIVATE_KEY`, or `init`'s hidden terminal prompt. argv is
+   visible to other processes.
 6. **Fund movements do not exist.** There is no withdraw/transfer/deposit
    command, by design. If a task seems to need one, stop.
 
 ## Two-wallet model
 
-`init` needs both values, and the account address is **not** derivable from the
-key:
+`init` needs both the account address and agent key, and the account address is
+**not** derivable from the key. The API wallet address is derived from the key
+and may also be supplied to `init` for a match check:
 
 - `--account` — the master/sub-account address that owns positions and balance.
-- agent private key — signs orders.
+- API wallet private key — signs orders; enter it at the hidden prompt or use
+  `--key-file` / `HLCLI_AGENT_PRIVATE_KEY`.
+- `--agent-address` — optional API wallet address, checked against the key.
 
 The agent key only works after the account's **master** key approves it via
 `hyperliquid agent approve`.

@@ -5,7 +5,8 @@
   "type": "module",
   "license": "MIT",
   "bin": {
-    "hyperliquid": "./dist/bin/hyperliquid.js"
+    "hyperliquid": "./dist/bin/hyperliquid.js",
+    "hl": "./dist/bin/hyperliquid.js"
   },
   "files": [
     "dist"
