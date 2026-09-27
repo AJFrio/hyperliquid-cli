@@ -34,9 +34,21 @@ export type Tif = (typeof TIFS)[number];
 
 export { TIFS };
 
+function validateSizePrecision(symbol: string, size: string, decimals: number): void {
+  const fraction = size.split(".")[1] ?? "";
+  if (fraction.length > decimals) {
+    throw new UsageError(
+      "INVALID_INPUT",
+      `${symbol} order size supports at most ${decimals} decimal places`,
+      { symbol, size, szDecimals: decimals },
+    );
+  }
+}
+
 export async function placeCmd(ctx: Context, args: PlaceArgs, out: OutputOptions): Promise<number> {
   const resolver = await ctx.assets();
   const asset = args.spot ? resolver.resolveSpot(args.symbol) : resolver.resolveAny(args.symbol);
+  validateSizePrecision(asset.symbol, args.size, asset.szDecimals);
 
   let type: OrderType;
   if (args.triggerPx !== undefined) {

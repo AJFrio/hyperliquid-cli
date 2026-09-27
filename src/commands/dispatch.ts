@@ -20,7 +20,7 @@ export async function dispatch(
 ): Promise<number> {
   const { privateKey } = await ctx.signingKey();
   const dryRun = ctx.flags.dryRun;
-  const { envelope, signed } = await signAndSendL1({
+  const { envelope, signed, exchangeResponse } = await signAndSendL1({
     action,
     privateKey,
     testnet: ctx.flags.testnet,
@@ -32,7 +32,7 @@ export async function dispatch(
       dryRun,
       posted: signed,
       action: label,
-      ...(dryRun ? { envelope: redact(envelope) } : { response: envelope }),
+      ...(dryRun ? { envelope: redact(envelope) } : { response: exchangeResponse }),
     },
     out,
   );

@@ -35,7 +35,7 @@ export interface SignAndSendArgs {
  */
 export async function signAndSendL1(
   args: SignAndSendArgs,
-): Promise<{ envelope: unknown; signed: boolean }> {
+): Promise<{ envelope: unknown; signed: boolean; exchangeResponse?: unknown }> {
   const wallet = privateKeyToAccount(args.privateKey);
   const signature = await signL1Action({
     wallet,
@@ -60,7 +60,7 @@ export async function signAndSendL1(
     ...(args.fetchImpl === undefined ? {} : { fetchImpl: args.fetchImpl }),
   });
   assertAccepted(raw);
-  return { envelope, signed: true };
+  return { envelope, signed: true, exchangeResponse: raw };
 }
 
 /** Sign a user-signed action such as approveAgent. Requires the MASTER key. */
@@ -99,6 +99,31 @@ function assertAccepted(raw: unknown): void {
         ? String((raw as { response: unknown }).response)
         : "no reason supplied";
     throw new ExchangeRejectedError(`exchange rejected the action: ${message}`, { response: raw });
+  }
+
+  const response =
+    typeof raw === "object" && raw !== null && "response" in raw
+      ? (raw as { response?: unknown }).response
+      : undefined;
+  const data =
+    typeof response === "object" && response !== null && "data" in response
+      ? (response as { data?: unknown }).data
+      : undefined;
+  const statuses =
+    typeof data === "object" && data !== null && "statuses" in data
+      ? (data as { statuses?: unknown }).statuses
+      : undefined;
+  if (Array.isArray(statuses)) {
+    const messages = statuses.flatMap((status) => {
+      if (typeof status !== "object" || status === null || !("error" in status)) return [];
+      const message = (status as { error: unknown }).error;
+      return typeof message === "string" ? [message] : [JSON.stringify(message)];
+    });
+    if (messages.length > 0) {
+      throw new ExchangeRejectedError(`exchange rejected the action: ${messages.join("; ")}`, {
+        response: raw,
+      });
+    }
   }
 }
 

@@ -30,6 +30,11 @@ export interface SpotPair {
   isCanonical?: boolean | undefined;
 }
 
+export interface SpotToken {
+  index: number;
+  szDecimals: number;
+}
+
 export type AssetKind = "perp" | "spot" | "hip3";
 
 export interface ResolvedAsset {
@@ -43,11 +48,13 @@ export class AssetResolver {
   private readonly perps: Map<string, { index: number; asset: PerpAsset }>;
   private readonly spot: Map<string, { index: number; pair: SpotPair }>;
   private readonly spotByIndex: Map<number, SpotPair>;
+  private readonly spotTokenSzDecimals: Map<number, number>;
   private readonly hip3: Map<string, { dexIndex: number; index: number; szDecimals: number }>;
 
   constructor(opts: {
     perps: PerpAsset[];
     spotPairs: SpotPair[];
+    spotTokens?: SpotToken[];
     /** dex name -> its position in `perpDexs` */
     perpDexs?: { name: string }[];
     /** per-dex universe entries for HIP-3 markets */
@@ -60,6 +67,9 @@ export class AssetResolver {
 
     this.spot = new Map();
     this.spotByIndex = new Map();
+    this.spotTokenSzDecimals = new Map(
+      (opts.spotTokens ?? []).map((token) => [token.index, token.szDecimals]),
+    );
     for (const pair of opts.spotPairs) {
       this.spot.set(pair.name, { index: pair.index, pair });
       this.spotByIndex.set(pair.index, pair);
@@ -108,7 +118,7 @@ export class AssetResolver {
         kind: "spot",
         assetId: SPOT_OFFSET + byName.index,
         symbol: byName.pair.name,
-        szDecimals: 0,
+        szDecimals: this.spotTokenSzDecimals.get(byName.pair.tokens[0]) ?? 0,
       };
     }
     const idxMatch = /^@(\d+)$/.exec(pair);
@@ -116,7 +126,12 @@ export class AssetResolver {
       const idx = Number(idxMatch[1]);
       const byIndex = this.spotByIndex.get(idx);
       if (byIndex !== undefined) {
-        return { kind: "spot", assetId: SPOT_OFFSET + idx, symbol: byIndex.name, szDecimals: 0 };
+        return {
+          kind: "spot",
+          assetId: SPOT_OFFSET + idx,
+          symbol: byIndex.name,
+          szDecimals: this.spotTokenSzDecimals.get(byIndex.tokens[0]) ?? 0,
+        };
       }
     }
     throw new UsageError("UNKNOWN_ASSET", `unknown spot pair: ${pair}`, {

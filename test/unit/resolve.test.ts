@@ -19,12 +19,14 @@ const meta = fixture("meta.json") as {
 };
 const spotMeta = fixture("spotMeta.json") as {
   universe: { name: string; index: number; tokens: [number, number]; isCanonical: boolean }[];
+  tokens: { name: string; index: number; szDecimals: number }[];
 };
 const allMids = fixture("allMids.json") as Record<string, string>;
 
 const resolver = new AssetResolver({
   perps: meta.universe,
   spotPairs: spotMeta.universe,
+  spotTokens: spotMeta.tokens,
   // Index 0 is the main perp dex (name ""), so "xyz" is dex index 1.
   perpDexs: [{ name: "" }, { name: "xyz" }],
   hip3Universes: [{ dex: "xyz", perps: [{ name: "XYZ100", szDecimals: 2, maxLeverage: 5 }] }],
@@ -74,6 +76,12 @@ describe("spot resolution uses the 10000 + index offset", () => {
     const viaName = resolver.resolveSpot(named?.name ?? "");
     const viaIndex = resolver.resolveSpot(`@${named?.index ?? -1}`);
     expect(viaIndex.assetId).toBe(viaName.assetId);
+  });
+
+  it("uses base token precision for non-canonical spot pairs", () => {
+    const resolved = resolver.resolveSpot("@1");
+    expect(resolved.symbol).toBe("@1");
+    expect(resolved.szDecimals).toBe(2);
   });
 
   it("resolves a non-canonical pair whose name is itself @N", () => {

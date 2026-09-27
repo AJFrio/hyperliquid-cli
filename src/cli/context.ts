@@ -106,8 +106,9 @@ export class Context {
   async assets(): Promise<AssetResolver> {
     if (this.resolver !== null) return this.resolver;
     const perps: PerpAsset[] = (await getMeta(this.infoOpts)).universe;
-    const spotPairs: SpotPair[] = (await getSpotMeta(this.infoOpts)).universe;
-    this.resolver = new AssetResolver({ perps, spotPairs });
+    const spotMeta = await getSpotMeta(this.infoOpts);
+    const spotPairs: SpotPair[] = spotMeta.universe;
+    this.resolver = new AssetResolver({ perps, spotPairs, spotTokens: spotMeta.tokens });
     return this.resolver;
   }
 
