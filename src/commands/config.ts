@@ -89,9 +89,11 @@ export async function initCmd(
       storageBackend: backend,
       configFile: ctx.paths().config,
       nextStep:
-        network === "mainnet"
-          ? "register this agent with the account: `hyperliquid agent approve` (needs the MASTER key, passed per-invocation, never stored)"
-          : "testnet only - no real funds at risk",
+        network === "testnet"
+          ? "testnet only - no real funds at risk"
+          : accountAddress === agentAddress
+            ? "single-key trading is configured; no agent approval is needed"
+            : "register this agent with the account: `hyperliquid agent approve` (enter the MASTER key at its hidden prompt; it is used once and never stored)",
     },
     out,
   );
@@ -150,6 +152,12 @@ export async function agentApproveCmd(
     .regex(/^0x[0-9a-fA-F]{40}$/)
     .parse(args.agentAddress)
     .toLowerCase();
+  if (cfg.accountAddress === agentAddress) {
+    throw new UsageError(
+      "UNSUPPORTED",
+      "the API wallet and account addresses match; single-key trading does not need agent approval",
+    );
+  }
   const nonce = Date.now();
   const action = approveAgentAction({
     agentAddress,

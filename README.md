@@ -101,16 +101,21 @@ reuse the stored key and never prompt. `hl` and `hyperliquid` run the same CLI.
 
 ### Registering the agent
 
-The agent key must be approved by the account's **master** key before it can
-trade. This is a signed Hyperliquid action, not an on-chain Arbitrum
-transaction, so nothing is broadcast to Arbitrum:
+When the account and API wallet use different addresses, the agent key must be
+approved by the account's **master** key before it can trade. `agent approve`
+prompts for the master key without echoing it and never stores it. This is a
+signed Hyperliquid action, not an on-chain Arbitrum transaction, so nothing is
+broadcast to Arbitrum. Single-key setups, where both addresses match, do not
+need agent approval:
 
 ```bash
-hyperliquid agent approve --master-key-file ./master.key
+hyperliquid agent approve
 ```
 
-The master key is used once, is never written to the config or the key store,
-and cannot be passed as a flag. Add `--dry-run` to inspect the envelope first.
+For scripted use, provide `--master-key-file` or set
+`HLCLI_MASTER_PRIVATE_KEY`. The master key is used once, is never written to the
+config or key store, and cannot be passed as a flag. Add `--dry-run` to inspect
+the envelope first.
 
 ## Security
 

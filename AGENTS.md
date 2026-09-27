@@ -29,8 +29,11 @@ and may also be supplied to `init` for a match check:
   `--key-file` / `HLCLI_AGENT_PRIVATE_KEY`.
 - `--agent-address` — optional API wallet address, checked against the key.
 
-The agent key only works after the account's **master** key approves it via
-`hyperliquid agent approve`.
+When the account and API wallet addresses differ, the account's **master** key
+must approve the agent via `hyperliquid agent approve`. The command accepts the
+master key through `--master-key-file`, `HLCLI_MASTER_PRIVATE_KEY`, or a hidden
+terminal prompt and never stores it. Matching account/API wallet addresses use
+single-key trading and do not need approval.
 
 ## Reliable series
 
