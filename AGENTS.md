@@ -17,6 +17,11 @@ programmatically.
    visible to other processes.
 6. **Fund movements do not exist.** There is no withdraw/transfer/deposit
    command, by design. If a task seems to need one, stop.
+7. **List and history reads are bounded by default.** They return 20 rows with
+   a `page` object; use `--page N`, `--limit N` (1–100), or explicit `--all`.
+   `--full` includes all exchange fields for returned rows. `--all` cannot be
+   combined with `--page` or `--limit`. If `page.sourceLimited` is true, the
+   exchange capped the source response and `page.total` is unknown.
 
 ## Two-wallet model
 
@@ -42,7 +47,11 @@ keys and opaque `#<index>` keys, and includes delisted instruments. Let the CLI
 resolve against `meta.universe` / `spotMeta.universe`.
 
 Perpetual symbol `BTC`; spot pair `PURR/USDC` or `@107`; HIP-3 `xyz:AAPL`.
-Mainnet and testnet asset ids differ.
+Spot display labels such as `HFUN/USDC` resolve back to the canonical `@index`
+symbol when unambiguous. Use `market dexs` and `market list --dex NAME` to
+discover builder DEX markets; `market list` defaults to active primary-DEX
+markets ordered by 24-hour notional volume. `market list --dex all` queries
+every DEX and uses more requests. Mainnet and testnet asset ids differ.
 
 ## Parsing numbers
 
@@ -52,9 +61,10 @@ rounding. Convert deliberately.
 ## Candles
 
 `candleSnapshot` is capped (~5000) and history is pruned, so a wide window can
-come back short or empty with HTTP 200. Always inspect `truncated` and `empty`
-before treating a result as complete. `--start` / `--end` accept ISO 8601 or
-epoch milliseconds.
+come back short or empty with HTTP 200. The CLI returns 20 newest candles by
+default. Inspect `truncated`, `empty`, and `page.sourceLimited` before treating
+a result as complete; narrow `--start` / `--end` when the source was capped.
+Those flags accept ISO 8601 or epoch milliseconds.
 
 ## Funding
 
@@ -74,10 +84,13 @@ liquidating.
 
 ```bash
 hyperliquid market ticker BTC                      # is the market live?
+hyperliquid market list --limit 20                 # volume-ranked, labeled, priced
+hyperliquid market list --page 2 --limit 20        # next page
 hyperliquid --dry-run order place BTC --side buy --size 0.01 --price 50000
 hyperliquid order place BTC --side buy --size 0.01 --price 50000
 hyperliquid account orders                         # did it land?
 hyperliquid order cancel-all                       # unwind
 ```
 
-Branch on `error.code`, not on message text.
+For a dry-run batch above 20 items, add global `--full` to inspect the complete
+signed envelope. Branch on `error.code`, not on message text.

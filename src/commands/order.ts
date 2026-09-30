@@ -46,8 +46,7 @@ function validateSizePrecision(symbol: string, size: string, decimals: number): 
 }
 
 export async function placeCmd(ctx: Context, args: PlaceArgs, out: OutputOptions): Promise<number> {
-  const resolver = await ctx.assets();
-  const asset = args.spot ? resolver.resolveSpot(args.symbol) : resolver.resolveAny(args.symbol);
+  const asset = args.spot ? await ctx.resolveSpot(args.symbol) : await ctx.resolveAny(args.symbol);
   validateSizePrecision(asset.symbol, args.size, asset.szDecimals);
 
   let type: OrderType;
@@ -92,8 +91,7 @@ export async function cancelCmd(
   args: { symbol: string; oid: number; fast: boolean },
   out: OutputOptions,
 ): Promise<number> {
-  const resolver = await ctx.assets();
-  const asset = resolver.resolveAny(args.symbol);
+  const asset = await ctx.resolveAny(args.symbol);
   const action = buildCancel([{ asset: asset.assetId, oid: args.oid }], {
     fast: args.fast,
   }) as Record<string, unknown>;
@@ -105,8 +103,7 @@ export async function cancelByCloidCmd(
   args: { symbol: string; cloid: string; fast: boolean },
   out: OutputOptions,
 ): Promise<number> {
-  const resolver = await ctx.assets();
-  const asset = resolver.resolveAny(args.symbol);
+  const asset = await ctx.resolveAny(args.symbol);
   const action = buildCancelByCloid([{ asset: asset.assetId, cloid: args.cloid.toLowerCase() }], {
     fast: args.fast,
   }) as Record<string, unknown>;
@@ -122,21 +119,25 @@ export async function cancelByCloidCmd(
 
 export async function cancelAllCmd(
   ctx: Context,
-  args: { symbol?: string | undefined; fast: boolean },
+  args: { symbol?: string | undefined; fast: boolean; dex?: string | undefined },
   out: OutputOptions,
 ): Promise<number> {
   const cfg = await ctx.config();
-  const rows = (await getOpenOrders(cfg.accountAddress, ctx.infoOpts)) as {
+  const impliedDex = args.symbol?.includes(":")
+    ? args.symbol.slice(0, args.symbol.indexOf(":"))
+    : undefined;
+  const dexRequest = args.dex ?? impliedDex;
+  const dex = dexRequest === undefined ? undefined : await ctx.resolveDexName(dexRequest);
+  const rows = (await getOpenOrders(cfg.accountAddress, ctx.infoOpts, dex)) as {
     coin: string;
     oid: number;
   }[];
-  const resolver = await ctx.assets();
-  const targets = rows
-    .filter((r) => args.symbol === undefined || r.coin.toUpperCase() === args.symbol.toUpperCase())
-    .map((r) => {
-      const asset = resolver.resolveAny(r.coin);
-      return { asset: asset.assetId, oid: r.oid };
-    });
+  const filtered = rows.filter(
+    (r) => args.symbol === undefined || r.coin.toUpperCase() === args.symbol.toUpperCase(),
+  );
+  const targets = await Promise.all(
+    filtered.map(async (r) => ({ asset: (await ctx.resolveAny(r.coin)).assetId, oid: r.oid })),
+  );
 
   if (targets.length === 0) {
     emitSuccess({ cancelled: 0, note: "no matching open orders" }, out);

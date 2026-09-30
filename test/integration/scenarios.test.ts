@@ -70,10 +70,70 @@ describe("S1 - happy path: market data for a selected market", () => {
     expect(code).toBe(0);
     const parsed = JSON.parse(out.join("")) as {
       count: number;
-      markets: { symbol: string; index: number }[];
+      total: number;
+      page: { limit: number; hasMore: boolean };
+      markets: { symbol: string; index: number; midPx: string | null; dayNtlVlm: string | null }[];
     };
     expect(parsed.count).toBe(3);
-    expect(parsed.markets[0]?.index).toBe(0);
+    expect(parsed.total).toBeGreaterThan(3);
+    expect(parsed.page).toMatchObject({ limit: 3, hasMore: true });
+    expect(parsed.markets[0]?.midPx).toMatch(/^\d+(\.\d+)?$/);
+    expect(parsed.markets[0]?.dayNtlVlm).toMatch(/^\d+(\.\d+)?$/);
+  });
+
+  it("lists spot labels and prices and resolves them back to canonical symbols", async () => {
+    const cap = capture();
+    const code = await run(
+      ["--config-dir", join(sandbox(), "x"), "market", "list", "--spot", "--limit", "3"],
+      cap.io,
+    );
+    expect(code).toBe(0);
+    const parsed = JSON.parse(cap.out.join("")) as {
+      pairs: { symbol: string; pair: string; midPx: string | null }[];
+    };
+    expect(parsed.pairs[0]?.pair).toMatch(/^.+\/.+$/);
+    expect(parsed.pairs[0]?.midPx === null || typeof parsed.pairs[0]?.midPx === "string").toBe(
+      true,
+    );
+  });
+
+  it("keeps default candle output bounded", async () => {
+    const cap = capture();
+    const code = await run(
+      ["--config-dir", join(sandbox(), "x"), "market", "candles", "BTC"],
+      cap.io,
+    );
+    expect(code).toBe(0);
+    const parsed = JSON.parse(cap.out.join("")) as { candles: unknown[]; page: { limit: number } };
+    expect(parsed.candles.length).toBeLessThanOrEqual(20);
+    expect(parsed.page.limit).toBe(20);
+  });
+
+  it("discovers a HIP-3 DEX, lists its markets, and returns a ticker", async () => {
+    const dir = join(sandbox(), "x");
+    const dexes = capture();
+    expect(await run(["--config-dir", dir, "market", "dexs"], dexes.io)).toBe(0);
+    const parsedDexes = JSON.parse(dexes.out.join("")) as {
+      dexs: { name: string; kind: string }[];
+    };
+    const dex = parsedDexes.dexs.find((candidate) => candidate.kind === "hip3");
+    expect(dex).toBeDefined();
+    const listings = capture();
+    expect(
+      await run(
+        ["--config-dir", dir, "market", "list", "--dex", dex?.name ?? "", "--limit", "1"],
+        listings.io,
+      ),
+    ).toBe(0);
+    const listed = JSON.parse(listings.out.join("")) as {
+      markets: { symbol: string; kind: string }[];
+    };
+    const symbol = listed.markets[0]?.symbol;
+    expect(symbol).toContain(":");
+    expect(listed.markets[0]?.kind).toBe("hip3");
+    const ticker = capture();
+    expect(await run(["--config-dir", dir, "market", "ticker", symbol ?? ""], ticker.io)).toBe(0);
+    expect(JSON.parse(ticker.out.join(""))).toMatchObject({ symbol, kind: "hip3" });
   });
 });
 

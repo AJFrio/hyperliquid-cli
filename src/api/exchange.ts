@@ -96,9 +96,11 @@ function assertAccepted(raw: unknown): void {
   if (parsed.data.status === "err") {
     const message =
       typeof raw === "object" && raw !== null && "response" in raw
-        ? String((raw as { response: unknown }).response)
+        ? String((raw as { response: unknown }).response).slice(0, 500)
         : "no reason supplied";
-    throw new ExchangeRejectedError(`exchange rejected the action: ${message}`, { response: raw });
+    throw new ExchangeRejectedError(`exchange rejected the action: ${message}`, {
+      response: message,
+    });
   }
 
   const response =
@@ -120,9 +122,14 @@ function assertAccepted(raw: unknown): void {
       return typeof message === "string" ? [message] : [JSON.stringify(message)];
     });
     if (messages.length > 0) {
-      throw new ExchangeRejectedError(`exchange rejected the action: ${messages.join("; ")}`, {
-        response: raw,
-      });
+      const sample = messages.slice(0, 5);
+      throw new ExchangeRejectedError(
+        `exchange rejected ${messages.length} item(s): ${sample.join("; ")}${messages.length > sample.length ? "; additional errors omitted" : ""}`,
+        {
+          rejectionCount: messages.length,
+          errors: sample,
+        },
+      );
     }
   }
 }

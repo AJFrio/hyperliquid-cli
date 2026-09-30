@@ -76,12 +76,17 @@ export function registerTrading(program: Command, write?: Writer): void {
   ord
     .command("cancel-all")
     .argument("[symbol]", "restrict to one market")
+    .option("--dex <name>", "restrict open orders to one perp DEX")
     .option("--fast", "fast cancel", false)
     .action(async (symbol, opts, cmd: Command) => {
       const p = globalsFor(cmd);
       process.exitCode = await order.cancelAllCmd(
         contextFrom(p),
-        { symbol, fast: (opts as { fast?: boolean }).fast === true },
+        {
+          symbol,
+          dex: (opts as { dex?: string }).dex,
+          fast: (opts as { fast?: boolean }).fast === true,
+        },
         outOf(p, write),
       );
     });

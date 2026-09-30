@@ -27,16 +27,69 @@ export async function dispatch(
     nonce: nextNonce(),
     signOnly: dryRun,
   });
+  const summary = summarizeAction(action);
+  const largeBatch = summary.itemCount > 20;
+  const response = out.full || !largeBatch ? exchangeResponse : summarizeResponse(exchangeResponse);
   emitSuccess(
     {
       dryRun,
       posted: signed,
       action: label,
-      ...(dryRun ? { envelope: redact(envelope) } : { response: exchangeResponse }),
+      ...(dryRun
+        ? out.full || !largeBatch
+          ? { envelope: redact(envelope) }
+          : { envelopeSummary: { nonce: (envelope as { nonce?: number }).nonce, ...summary } }
+        : { response }),
     },
     out,
   );
   return 0;
+}
+
+export function summarizeAction(action: Record<string, unknown>): {
+  type: unknown;
+  itemKey?: string;
+  itemCount: number;
+  items: unknown[];
+  omitted: number;
+} {
+  const listEntry = Object.entries(action).find(([, value]) => Array.isArray(value));
+  if (listEntry === undefined) return { type: action.type, itemCount: 0, items: [], omitted: 0 };
+  const [key, value] = listEntry;
+  const items = value as unknown[];
+  return {
+    type: action.type,
+    itemKey: key,
+    itemCount: items.length,
+    items: items.slice(0, 20),
+    omitted: Math.max(0, items.length - 20),
+  };
+}
+
+export function summarizeResponse(response: unknown): unknown {
+  if (typeof response !== "object" || response === null) return response;
+  const top = response as Record<string, unknown>;
+  const envelope =
+    typeof top.response === "object" && top.response !== null
+      ? (top.response as Record<string, unknown>)
+      : undefined;
+  const data =
+    envelope?.data !== null && typeof envelope?.data === "object"
+      ? (envelope.data as Record<string, unknown>)
+      : undefined;
+  const statuses = Array.isArray(data?.statuses) ? data.statuses : undefined;
+  if (statuses === undefined) return response;
+  return {
+    status: top.status,
+    response: {
+      type: envelope?.type,
+      data: {
+        statusCount: statuses.length,
+        statuses: statuses.slice(0, 20),
+        omitted: Math.max(0, statuses.length - 20),
+      },
+    },
+  };
 }
 
 /** Truncate signature components so a dry-run transcript is not a replayable artifact. */

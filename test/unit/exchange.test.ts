@@ -41,7 +41,10 @@ describe("signAndSendL1 exchange responses", () => {
       }),
     ).rejects.toMatchObject({
       code: "EXCHANGE_REJECTED",
-      message: "exchange rejected the action: Order size has too many decimals.",
+      details: {
+        rejectionCount: 1,
+        errors: ["Order size has too many decimals."],
+      },
     });
   });
 

@@ -1,8 +1,15 @@
 import { join } from "node:path";
 import { privateKeyToAccount } from "viem/accounts";
 import { z } from "zod";
-import { getMeta, getSpotMeta, type InfoOptions } from "../api/info.js";
-import { AssetResolver, type PerpAsset, type SpotPair } from "../assets/resolve.js";
+import { getMeta, getPerpDexs, getSpotMeta, type InfoOptions, type PerpDex } from "../api/info.js";
+import {
+  AssetResolver,
+  HIP3_DEX_STRIDE,
+  HIP3_OFFSET,
+  type PerpAsset,
+  type ResolvedAsset,
+  type SpotPair,
+} from "../assets/resolve.js";
 import { configDir, configSchema, type HlConfig, type Network } from "../config/config.js";
 import { NotConfiguredError, UsageError } from "../errors.js";
 import { type LoadedSecret, loadKey } from "../storage/keystore.js";
@@ -12,6 +19,7 @@ export interface GlobalFlags {
   dryRun: boolean;
   table: boolean;
   quiet: boolean;
+  full: boolean;
   configDir?: string | undefined;
   env: NodeJS.ProcessEnv;
 }
@@ -20,6 +28,8 @@ export class Context {
   readonly flags: GlobalFlags;
   private cfg: HlConfig | null = null;
   private resolver: AssetResolver | null = null;
+  private dexList: PerpDex[] | null = null;
+  private readonly dexMetas = new Map<string, PerpAsset[]>();
 
   constructor(flags: GlobalFlags) {
     this.flags = flags;
@@ -110,6 +120,70 @@ export class Context {
     const spotPairs: SpotPair[] = spotMeta.universe;
     this.resolver = new AssetResolver({ perps, spotPairs, spotTokens: spotMeta.tokens });
     return this.resolver;
+  }
+
+  async perpDexes(): Promise<PerpDex[]> {
+    if (this.dexList !== null) return this.dexList;
+    this.dexList = await getPerpDexs(this.infoOpts);
+    return this.dexList;
+  }
+
+  async resolveDexName(requested: string): Promise<string> {
+    if (requested === "" || requested.toLowerCase() === "primary") return "";
+    const dexes = await this.perpDexes();
+    const dex = dexes.find(
+      (candidate) => candidate?.name.toLowerCase() === requested.toLowerCase(),
+    );
+    if (dex?.name === undefined) {
+      throw new UsageError("UNKNOWN_ASSET", `unknown perpetual DEX: ${requested}`, {
+        dex: requested,
+      });
+    }
+    return dex.name;
+  }
+
+  /** Resolve main DEX, spot, or builder perp symbols without loading every DEX universe. */
+  async resolveAny(symbol: string): Promise<ResolvedAsset> {
+    const resolver = await this.assets();
+    try {
+      return resolver.resolveAny(symbol);
+    } catch (err) {
+      if (!symbol.includes(":")) throw err;
+      const separator = symbol.indexOf(":");
+      const requestedDex = symbol.slice(0, separator);
+      const dexes = await this.perpDexes();
+      const dexIndex = dexes.findIndex(
+        (dex) => dex?.name.toLowerCase() === requestedDex.toLowerCase(),
+      );
+      const dex = dexes[dexIndex];
+      if (dexIndex < 1 || dex?.name === undefined) throw err;
+
+      let universe = this.dexMetas.get(dex.name);
+      if (universe === undefined) {
+        universe = (await getMeta(this.infoOpts, dex.name)).universe;
+        this.dexMetas.set(dex.name, universe);
+      }
+      const assetIndex = universe.findIndex((asset) => {
+        const canonical = asset.name.includes(":") ? asset.name : `${dex.name}:${asset.name}`;
+        return canonical.toUpperCase() === symbol.toUpperCase();
+      });
+      const asset = universe[assetIndex];
+      if (assetIndex < 0 || asset === undefined) throw err;
+      const canonical = asset.name.includes(":") ? asset.name : `${dex.name}:${asset.name}`;
+      return {
+        kind: "hip3",
+        assetId: HIP3_OFFSET + dexIndex * HIP3_DEX_STRIDE + assetIndex,
+        symbol: canonical,
+        szDecimals: asset.szDecimals,
+        displayName: `${canonical} perpetual`,
+        dex: dex.name,
+        ...(dex.fullName === undefined ? {} : { dexFullName: dex.fullName }),
+      };
+    }
+  }
+
+  async resolveSpot(symbol: string): Promise<ResolvedAsset> {
+    return (await this.assets()).resolveSpot(symbol);
   }
 
   async network(): Promise<Network> {
