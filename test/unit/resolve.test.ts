@@ -78,6 +78,12 @@ describe("spot resolution uses the 10000 + index offset", () => {
     expect(viaIndex.assetId).toBe(viaName.assetId);
   });
 
+  it("accepts an unambiguous token display pair while returning the exchange symbol", () => {
+    const resolved = resolver.resolveSpot("hfun/usdc");
+    expect(resolved.symbol).toBe("@1");
+    expect(resolved.displayName).toBe("HFUN/USDC");
+  });
+
   it("uses base token precision for non-canonical spot pairs", () => {
     const resolved = resolver.resolveSpot("@1");
     expect(resolved.symbol).toBe("@1");
@@ -99,6 +105,10 @@ describe("spot resolution uses the 10000 + index offset", () => {
 describe("HIP-3 resolution uses 100000 + dexIndex*10000 + index", () => {
   it("maps xyz:XYZ100 to 100000 + 1*10000 + 0 = 110000", () => {
     expect(resolver.resolveHip3("xyz:XYZ100").assetId).toBe(110_000);
+  });
+
+  it("normalizes an unprefixed builder universe entry to its exchange symbol", () => {
+    expect(resolver.resolveHip3("XYZ:xyz100").symbol).toBe("xyz:XYZ100");
   });
 
   it("is not resolvable as a plain perp", () => {

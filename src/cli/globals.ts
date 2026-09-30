@@ -7,6 +7,7 @@ export interface Parsed {
   dryRun: boolean;
   table: boolean;
   quiet: boolean;
+  full: boolean;
   configDir?: string | undefined;
 }
 
@@ -17,6 +18,7 @@ export function globalsFor(cmd: Command): Parsed {
     dryRun: o.dryRun === true,
     table: o.table === true,
     quiet: o.quiet === true,
+    full: o.full === true,
     configDir: o.configDir,
   };
 }
@@ -33,6 +35,7 @@ export function contextFrom(p: Parsed, env: NodeJS.ProcessEnv = process.env): Co
     dryRun: p.dryRun,
     table: p.table,
     quiet: p.quiet,
+    full: p.full,
     configDir: p.configDir,
     env: effectiveEnv,
   };
@@ -43,6 +46,7 @@ export function outOf(p: Parsed, write?: Writer): OutputOptions {
   return {
     table: p.table,
     quiet: p.quiet,
+    full: p.full,
     write: write ?? ((t) => process.stdout.write(t)),
   };
 }

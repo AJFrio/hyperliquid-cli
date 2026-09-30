@@ -21,6 +21,7 @@ export function buildProgram(write?: Writer): Command {
     .option("--testnet", "use the testnet deployment (no real funds)", false)
     .option("--dry-run", "sign and print the envelope without posting to /exchange", false)
     .option("--table", "human-readable table instead of JSON", false)
+    .option("--full", "include complete exchange response fields", false)
     .option("-q, --quiet", "suppress stdout", false)
     .option("--config-dir <path>", "override the config directory (also HLCLI_CONFIG_DIR)")
     .showHelpAfterError();

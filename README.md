@@ -64,10 +64,20 @@ Error `code` is stable and safe to branch on: `USAGE`, `UNKNOWN_ASSET`,
 | Flag | Effect |
 |---|---|
 | `--testnet` | use the testnet deployment |
-| `--dry-run` | sign and print the envelope, do **not** POST to `/exchange` |
+| `--dry-run` | sign and show the envelope (or a large-batch summary), do **not** POST |
 | `--table` | human-readable table instead of JSON |
+| `--full` | include all exchange fields for rows on the selected page |
 | `-q, --quiet` | suppress stdout entirely |
 | `--config-dir <path>` | use an isolated config/credential directory |
+
+List and history commands return 20 rows by default and include a `page` object
+with `number`, `limit`, `returned`, `total`, `hasMore`, and `sourceLimited`.
+Use `--page N` for another page, `--limit N` to change its size (1–100), or
+`--all` when the full source response is intended. `--all` cannot be combined
+with `--page` or `--limit`. `--full` includes every exchange field for each
+selected row; combine it with `--all` only when a large response is needed.
+When the exchange caps a source response, `total` is `null` and
+`sourceLimited` is true.
 
 ## Setup
 
@@ -164,7 +174,10 @@ Everything the web app can do to **read** data and to **trade**:
 | Setup | `init`, `config show`, `config remove`, `agent approve`, `agent status` |
 
 Perpetual and spot markets are both supported, including HIP-3 builder perps
-(`dex:COIN`).
+(`dex:COIN`). `market dexs` lists perpetual DEXs. `market list` ranks active
+primary-DEX perps by 24-hour notional volume; use `--dex NAME` or `--dex all`
+for builder perps, and `--spot` for spot pairs. Spot rows include readable
+`BASE/QUOTE` labels and a mid price when the exchange provides one.
 
 ### Deliberately not implemented
 
@@ -189,6 +202,15 @@ that names them, so they cannot be presented honestly.
 hyperliquid market ticker BTC
 hyperliquid market candles BTC --interval 15m --start 1789000000000 --end 1790460000000
 
+# Browse markets by 24-hour volume, then continue to page 2
+hyperliquid market list --limit 20
+hyperliquid market list --page 2 --limit 20
+
+# Inspect builder DEXs and request every candle returned for a window
+hyperliquid market dexs
+hyperliquid market list --dex xyz --limit 20
+hyperliquid market candles BTC --all
+
 # Review an order without sending it
 hyperliquid --dry-run order place BTC --side buy --size 0.01 --price 50000
 
@@ -204,8 +226,8 @@ hyperliquid order schedule-cancel --at 2026-01-01T00:00:00Z
 hyperliquid order schedule-cancel --clear
 ```
 
-Always prefer `--dry-run` first. It produces the exact signed envelope and
-posts nothing.
+Always prefer `--dry-run` first. It posts nothing. For a batch larger than 20
+items, add global `--full` to inspect the complete signed envelope.
 
 ## Notes on the exchange API
 
@@ -219,12 +241,20 @@ than the published documentation, which is out of date in several places:
   `metaAndAssetCtxs` and `spotMetaAndAssetCtxs`.
 - `candleSnapshot` responses are capped (~5000 candles) and history is pruned.
   A wide window can return fewer rows, or none, with HTTP 200. This client
-  always reports `returned`, `availableInWindow`, `truncated` and `empty` so
-  under-delivery is never silent.
+  returns 20 newest candles by default and reports `returned`,
+  `availableInWindow`, `truncated`, `empty`, page state and `sourceLimited` so
+  under-delivery is never silent. Use narrower `--start` / `--end` ranges when
+  the exchange limit is reached.
 - `allMids` mixes three namespaces in one flat object — perp names, `@<index>`
   spot pairs, and opaque `#<index>` keys — and includes delisted instruments.
   Symbols are therefore always resolved against `meta.universe` /
   `spotMeta.universe`, never against mid keys.
+- `perpDexs` includes the primary DEX at index 0 and builder DEXes after it.
+  `market list --dex all` fetches each DEX's metadata and contexts; ordinary
+  list and ticker requests stay scoped to one DEX. Builder symbols include
+  their DEX prefix, for example `xyz:TSLA`.
+- Spot context arrays can include entries outside `spotMeta.universe`, so the
+  CLI joins contexts by `coin`, not array position. Missing mids remain null.
 - `predictedFundings` is multi-venue (`BinPerp` / `HlPerp` / `BybitPerp`) with
   per-venue intervals, and 69 of 702 venue entries are currently `null`.
 - Spot asset ids are `10000 + spotMeta.universe[i].index`; HIP-3 ids are

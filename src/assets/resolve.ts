@@ -33,6 +33,8 @@ export interface SpotPair {
 export interface SpotToken {
   index: number;
   szDecimals: number;
+  name?: string;
+  fullName?: string | null | undefined;
 }
 
 export type AssetKind = "perp" | "spot" | "hip3";
@@ -42,21 +44,35 @@ export interface ResolvedAsset {
   assetId: number;
   symbol: string;
   szDecimals: number;
+  displayName?: string;
+  fullName?: string | null | undefined;
+  dex?: string;
+  dexFullName?: string;
 }
 
 export class AssetResolver {
   private readonly perps: Map<string, { index: number; asset: PerpAsset }>;
   private readonly spot: Map<string, { index: number; pair: SpotPair }>;
   private readonly spotByIndex: Map<number, SpotPair>;
-  private readonly spotTokenSzDecimals: Map<number, number>;
-  private readonly hip3: Map<string, { dexIndex: number; index: number; szDecimals: number }>;
+  private readonly spotTokens: Map<number, SpotToken>;
+  private readonly hip3: Map<
+    string,
+    {
+      symbol: string;
+      dex: string;
+      dexFullName?: string;
+      dexIndex: number;
+      index: number;
+      szDecimals: number;
+    }
+  >;
 
   constructor(opts: {
     perps: PerpAsset[];
     spotPairs: SpotPair[];
     spotTokens?: SpotToken[];
     /** dex name -> its position in `perpDexs` */
-    perpDexs?: { name: string }[];
+    perpDexs?: { name: string; fullName?: string | undefined }[];
     /** per-dex universe entries for HIP-3 markets */
     hip3Universes?: { dex: string; perps: PerpAsset[] }[];
   }) {
@@ -67,22 +83,26 @@ export class AssetResolver {
 
     this.spot = new Map();
     this.spotByIndex = new Map();
-    this.spotTokenSzDecimals = new Map(
-      (opts.spotTokens ?? []).map((token) => [token.index, token.szDecimals]),
-    );
+    this.spotTokens = new Map((opts.spotTokens ?? []).map((token) => [token.index, token]));
     for (const pair of opts.spotPairs) {
       this.spot.set(pair.name, { index: pair.index, pair });
       this.spotByIndex.set(pair.index, pair);
     }
 
     this.hip3 = new Map();
-    const dexIndexByName = new Map((opts.perpDexs ?? []).map((d, i) => [d.name, i]));
+    const dexIndexByName = new Map(
+      (opts.perpDexs ?? []).map((d, i) => [d.name, { index: i, fullName: d.fullName }]),
+    );
     for (const uni of opts.hip3Universes ?? []) {
-      const dexIndex = dexIndexByName.get(uni.dex);
-      if (dexIndex === undefined) continue;
+      const dex = dexIndexByName.get(uni.dex);
+      if (dex === undefined) continue;
       uni.perps.forEach((asset, index) => {
-        this.hip3.set(`${uni.dex}:${asset.name}`, {
-          dexIndex,
+        const symbol = asset.name.includes(":") ? asset.name : `${uni.dex}:${asset.name}`;
+        this.hip3.set(symbol.toUpperCase(), {
+          symbol,
+          dex: uni.dex,
+          ...(dex.fullName === undefined ? {} : { dexFullName: dex.fullName }),
+          dexIndex: dex.index,
           index,
           szDecimals: asset.szDecimals,
         });
@@ -104,6 +124,7 @@ export class AssetResolver {
       assetId: PERP_OFFSET + found.index,
       symbol: found.asset.name,
       szDecimals: found.asset.szDecimals,
+      displayName: `${found.asset.name} perpetual`,
     };
   }
 
@@ -111,17 +132,43 @@ export class AssetResolver {
    * Resolve a spot pair. Accepts the canonical `BASE/QUOTE` name and the
    * `@<index>` form used for non-canonical pairs. Asset id is `10000 + index`.
    */
-  resolveSpot(pair: string): ResolvedAsset {
-    const byName = this.spot.get(pair);
+  resolveSpot(spotName: string): ResolvedAsset {
+    const byName = this.spot.get(spotName);
     if (byName !== undefined) {
       return {
         kind: "spot",
         assetId: SPOT_OFFSET + byName.index,
         symbol: byName.pair.name,
-        szDecimals: this.spotTokenSzDecimals.get(byName.pair.tokens[0]) ?? 0,
+        szDecimals: this.spotTokens.get(byName.pair.tokens[0])?.szDecimals ?? 0,
+        displayName: this.spotDisplayName(byName.pair),
+        fullName: this.spotTokens.get(byName.pair.tokens[0])?.fullName,
       };
     }
-    const idxMatch = /^@(\d+)$/.exec(pair);
+    const displayMatches = [...this.spot.values()].filter(
+      ({ pair }) => this.spotDisplayName(pair).toUpperCase() === spotName.toUpperCase(),
+    );
+    if (displayMatches.length > 1) {
+      throw new UsageError(
+        "INVALID_INPUT",
+        `ambiguous spot pair label: ${spotName}; use @<index>`,
+        {
+          symbol: spotName,
+          candidates: displayMatches.map(({ pair }) => pair.name),
+        },
+      );
+    }
+    const byDisplayName = displayMatches[0];
+    if (byDisplayName !== undefined) {
+      return {
+        kind: "spot",
+        assetId: SPOT_OFFSET + byDisplayName.index,
+        symbol: byDisplayName.pair.name,
+        szDecimals: this.spotTokens.get(byDisplayName.pair.tokens[0])?.szDecimals ?? 0,
+        displayName: this.spotDisplayName(byDisplayName.pair),
+        fullName: this.spotTokens.get(byDisplayName.pair.tokens[0])?.fullName,
+      };
+    }
+    const idxMatch = /^@(\d+)$/.exec(spotName);
     if (idxMatch?.[1] !== undefined) {
       const idx = Number(idxMatch[1]);
       const byIndex = this.spotByIndex.get(idx);
@@ -130,19 +177,21 @@ export class AssetResolver {
           kind: "spot",
           assetId: SPOT_OFFSET + idx,
           symbol: byIndex.name,
-          szDecimals: this.spotTokenSzDecimals.get(byIndex.tokens[0]) ?? 0,
+          szDecimals: this.spotTokens.get(byIndex.tokens[0])?.szDecimals ?? 0,
+          displayName: this.spotDisplayName(byIndex),
+          fullName: this.spotTokens.get(byIndex.tokens[0])?.fullName,
         };
       }
     }
-    throw new UsageError("UNKNOWN_ASSET", `unknown spot pair: ${pair}`, {
-      symbol: pair,
+    throw new UsageError("UNKNOWN_ASSET", `unknown spot pair: ${spotName}`, {
+      symbol: spotName,
       kind: "spot",
     });
   }
 
   /** Resolve a HIP-3 builder-perp named `dex:COIN`, e.g. `xyz:AAPL`. */
   resolveHip3(symbol: string): ResolvedAsset {
-    const found = this.hip3.get(symbol);
+    const found = this.hip3.get(symbol.toUpperCase());
     if (found === undefined) {
       throw new UsageError("UNKNOWN_ASSET", `unknown HIP-3 market: ${symbol}`, {
         symbol,
@@ -152,8 +201,11 @@ export class AssetResolver {
     return {
       kind: "hip3",
       assetId: HIP3_OFFSET + found.dexIndex * HIP3_DEX_STRIDE + found.index,
-      symbol,
+      symbol: found.symbol,
       szDecimals: found.szDecimals,
+      displayName: `${found.symbol} perpetual`,
+      dex: found.dex,
+      ...(found.dexFullName === undefined ? {} : { dexFullName: found.dexFullName }),
     };
   }
 
@@ -172,6 +224,12 @@ export class AssetResolver {
       }
     }
     throw new UsageError("UNKNOWN_ASSET", `unknown market: ${symbol}`, { symbol });
+  }
+
+  private spotDisplayName(pair: SpotPair): string {
+    const base = this.spotTokens.get(pair.tokens[0])?.name;
+    const quote = this.spotTokens.get(pair.tokens[1])?.name;
+    return base !== undefined && quote !== undefined ? `${base}/${quote}` : pair.name;
   }
 
   allPerpSymbols(): string[] {

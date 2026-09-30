@@ -21,8 +21,7 @@ export async function leverageCmd(
   if ((args.cross === true) === (args.isolated === true)) {
     throw new UsageError("USAGE", "choose exactly one of --cross or --isolated");
   }
-  const resolver = await ctx.assets();
-  const asset = resolver.resolveAny(args.symbol);
+  const asset = await ctx.resolveAny(args.symbol);
   const action = buildUpdateLeverage(asset.assetId, args.leverage, args.cross === true) as Record<
     string,
     unknown
@@ -40,8 +39,7 @@ export async function addMarginCmd(
   args: { symbol: string; usd: number; side: "long" | "short" },
   out: OutputOptions,
 ): Promise<number> {
-  const resolver = await ctx.assets();
-  const asset = resolver.resolveAny(args.symbol);
+  const asset = await ctx.resolveAny(args.symbol);
   const action = buildUpdateIsolatedMargin(asset.assetId, args.usd, args.side === "long") as Record<
     string,
     unknown
@@ -59,8 +57,7 @@ export async function topUpCmd(
   args: { symbol: string; leverage: number },
   out: OutputOptions,
 ): Promise<number> {
-  const resolver = await ctx.assets();
-  const asset = resolver.resolveAny(args.symbol);
+  const asset = await ctx.resolveAny(args.symbol);
   const action = buildTopUpIsolatedOnlyMargin(asset.assetId, args.leverage) as Record<
     string,
     unknown

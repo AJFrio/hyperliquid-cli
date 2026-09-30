@@ -8,8 +8,7 @@ export async function twapPlaceCmd(
   args: { symbol: string; side: "buy" | "sell"; size: string; minutes: number; randomize: boolean },
   out: OutputOptions,
 ): Promise<number> {
-  const resolver = await ctx.assets();
-  const asset = resolver.resolveAny(args.symbol);
+  const asset = await ctx.resolveAny(args.symbol);
   const action = buildTwapOrder({
     a: asset.assetId,
     b: args.side === "buy",
@@ -31,8 +30,7 @@ export async function twapCancelCmd(
   args: { symbol: string; twapId: number },
   out: OutputOptions,
 ): Promise<number> {
-  const resolver = await ctx.assets();
-  const asset = resolver.resolveAny(args.symbol);
+  const asset = await ctx.resolveAny(args.symbol);
   const action = buildTwapCancel(asset.assetId, args.twapId) as Record<string, unknown>;
   return dispatch(ctx, action, `cancel twap ${args.twapId} on ${asset.symbol}`, out);
 }
